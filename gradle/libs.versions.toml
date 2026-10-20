@@ -1,15 +1,16 @@
 [versions]
+# Keep Android libraries compatible with compileSdk 36; verify upgrades with make check.
 agp = "9.4.1"
 kotlin = "2.4.21"
 ksp = "2.3.12"
-coreKtx = "1.19.1"
+coreKtx = "1.16.0"
 activityCompose = "1.10.1"
-composeBom = "2026.09.00"
-navigationCompose = "2.10.2"
+composeBom = "2025.05.01"
+navigationCompose = "2.9.0"
 room = "2.8.5"
 datastore = "1.1.7"
 work = "2.12.0"
-okhttp = "5.5.0"
+okhttp = "4.12.0"
 serializationJson = "1.11.0"
 coroutines = "1.11.0"
 lifecycle = "2.9.0"
@@ -50,7 +51,6 @@ androidx-espresso-core = { module = "androidx.test.espresso:espresso-core", vers
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }

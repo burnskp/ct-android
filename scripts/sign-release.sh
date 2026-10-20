@@ -16,9 +16,9 @@ if [[ $# != 2 ]]; then
 fi
 
 sdk_root="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
-build_tools="$sdk_root/build-tools/37.0.0"
+build_tools="$sdk_root/build-tools/36.0.0"
 for tool in zipalign apksigner; do
-    [[ -x "$build_tools/$tool" ]] || { echo "Set ANDROID_HOME to an SDK with Build Tools 37.0.0." >&2; exit 1; }
+    [[ -x "$build_tools/$tool" ]] || { echo "Set ANDROID_HOME to an SDK with Build Tools 36.0.0." >&2; exit 1; }
 done
 [[ -f "$1" ]] || { echo "Unsigned APK does not exist." >&2; exit 1; }
 umask 077

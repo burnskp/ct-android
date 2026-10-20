@@ -81,7 +81,7 @@ release:
 sideload:
 	$(GRADLE) :app:assembleRelease
 	sdk_root="$${ANDROID_HOME:-$${ANDROID_SDK_ROOT:-}}"
-	build_tools="$${sdk_root:+$$sdk_root/build-tools/37.0.0}"
+	build_tools="$${sdk_root:+$$sdk_root/build-tools/36.0.0}"
 	if [[ -n "$$build_tools" && -x "$$build_tools/zipalign" ]]; then
 		zipalign="$$build_tools/zipalign"
 	elif command -v zipalign >/dev/null 2>&1; then

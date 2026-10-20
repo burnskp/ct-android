@@ -36,8 +36,8 @@
         }:
         let
           androidPackages = pkgs.androidenv.composeAndroidPackages {
-            platformVersions = [ "37.0" ];
-            buildToolsVersions = [ "37.0.0" ];
+            platformVersions = [ "36" ];
+            buildToolsVersions = [ "36.0.0" ];
           };
           androidSdk = androidPackages.androidsdk;
         in
@@ -46,7 +46,7 @@
           JAVA_HOME = "${pkgs.jdk17}/lib/openjdk";
           ANDROID_HOME = "${androidSdk}/libexec/android-sdk";
           ANDROID_SDK_ROOT = "${androidSdk}/libexec/android-sdk";
-          GRADLE_OPTS = "-Dorg.gradle.project.android.aapt2FromMavenOverride=${androidSdk}/libexec/android-sdk/build-tools/37.0.0/aapt2";
+          GRADLE_OPTS = "-Dorg.gradle.project.android.aapt2FromMavenOverride=${androidSdk}/libexec/android-sdk/build-tools/36.0.0/aapt2";
 
           packages = [
             androidSdk

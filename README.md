@@ -13,7 +13,7 @@ nix develop
 The Nix shell currently supports only x86-64 Linux. On other systems, or without Nix:
 
 1. Install JDK 17 and Android Studio or Android SDK command-line tools.
-2. Install Android SDK Platform 37 and Build Tools 37.0.0 using SDK Manager. With command-line tools, run `sdkmanager "platforms;android-37" "build-tools;37.0.0"` and accept licenses with `sdkmanager --licenses`.
+2. Install Android SDK Platform 36 and Build Tools 36.0.0 using SDK Manager. With command-line tools, run `sdkmanager "platforms;android-36" "build-tools;36.0.0"` and accept licenses with `sdkmanager --licenses`.
 3. Set `JAVA_HOME` to JDK 17 and `ANDROID_HOME` to your SDK directory. Alternatively, set `sdk.dir` in your ignored `local.properties`. Remove stale SDK paths when switching installations.
 4. In Android Studio, select JDK 17 under Settings → Build, Execution, Deployment → Build Tools → Gradle → Gradle JDK.
 

@@ -16,7 +16,7 @@ Use a strong password and retain both store and key passwords. Certificate ident
 
 ## Local public release
 
-Enter the Nix shell, or provide JDK 17, Python 3, Git, GNU Make, Bash, and `ANDROID_HOME` with Build Tools 37.0.0. Commit the release changes and create or check out the release tag first (for example, `git tag v0.1.0`). `make release` requires exactly one `v*` tag on `HEAD` and validates it before building or signing. Supply these environment variables using a password manager or interactive prompts, not command-line password arguments:
+Enter the Nix shell, or provide JDK 17, Python 3, Git, GNU Make, Bash, and `ANDROID_HOME` with Build Tools 36.0.0. Commit the release changes and create or check out the release tag first (for example, `git tag v0.1.0`). `make release` requires exactly one `v*` tag on `HEAD` and validates it before building or signing. Supply these environment variables using a password manager or interactive prompts, not command-line password arguments:
 
 ```sh
 export ANDROID_KEYSTORE_PATH="$HOME/.android-release/couch-tasks.jks"
@@ -74,6 +74,6 @@ Run unit tests, debug and release lint, debug and release builds, and instrument
 ./gradlew --continue testDebugUnitTest lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest
 ```
 
-Run `./gradlew connectedDebugAndroidTest` on both API 26 and API 37 before release. This includes schema 3→4 migration, project child preservation, canonical merges, tombstones, share draft idempotency, and persistent switch recovery tests. Exercise the share confirmation screen with external intents, cancellation, edits and recreation, and test a real server switch with a lost response after server commit and process termination before activation. Confirm the old dataset remains active until successful activation and retry creates no duplicate identities. Instrumentation compilation is not a substitute for these device runs.
+Run `./gradlew connectedDebugAndroidTest` on both API 26 and API 36 before release. This includes schema 3→4 migration, project child preservation, canonical merges, tombstones, share draft idempotency, and persistent switch recovery tests. Exercise the share confirmation screen with external intents, cancellation, edits and recreation, and test a real server switch with a lost response after server commit and process termination before activation. Confirm the old dataset remains active until successful activation and retry creates no duplicate identities. Instrumentation compilation is not a substitute for these device runs.
 
 Run Gitleaks against the exact publishable tracked snapshot, including uncommitted additions intended for the release, with redacted output. Inspect workflow permissions and Android backup exclusions: profiles and journals live in the excluded app database, profile passwords in the excluded encrypted preferences, and staged databases under `noBackupFilesDir`. No APK may be distributed until these gates pass. Keep dependency upgrades separate from release hardening unless a relevant vulnerability or compatibility requirement is established.

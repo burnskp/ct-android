@@ -5,6 +5,7 @@ import androidx.room.withTransaction
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.combine
 import kotlinx.serialization.Serializable
+import com.couchtasks.android.sync.ConnectionOperations
 import com.couchtasks.android.sync.SyncJson
 import android.content.Context
 import android.content.Intent
@@ -97,11 +98,14 @@ class SettingsRepository(context: Context, val database: CouchTasksDatabase = Co
     suspend fun setServerUrl(input: String): ServerUrlValidationResult {
         val result = validateAndNormalizeServerUrl(input)
         if (result is ServerUrlValidationResult.Valid) {
-            updateConfiguration {
-                require(it.serverUrl == result.normalizedUrl || (it.serverUrl.isBlank() && database.taskDao().allTasks().isEmpty())) {
-                    "Use the server switch flow to change servers"
+            // Match sync/switch lock ordering and recheck after any in-flight sync finishes.
+            ConnectionOperations.mutex.withLock {
+                updateConfiguration {
+                    require(it.serverUrl == result.normalizedUrl || it.lastSyncTimestamp.isBlank()) {
+                        "Use the server switch flow to change servers"
+                    }
+                    it.copy(serverUrl = result.normalizedUrl)
                 }
-                it.copy(serverUrl = result.normalizedUrl)
             }
         }
         return result

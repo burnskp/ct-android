@@ -53,7 +53,19 @@ class CouchTasksAppComposeTest {
             .allowMainThreadQueries()
             .build()
         repository = TasksRepository(db)
-        settingsRepository = SettingsRepository(context)
+        settingsRepository = SettingsRepository(context, db)
+        runBlocking {
+            db.connectionDao().save(com.couchtasks.android.data.ConnectionProfile(
+                "legacy",
+                com.couchtasks.android.sync.SyncJson.encodeToString(
+                    com.couchtasks.android.settings.SettingsState.serializer(),
+                    com.couchtasks.android.settings.SettingsState(),
+                ),
+            ))
+            db.connectionDao().activate(com.couchtasks.android.data.ActiveProfile(profileId = "legacy"))
+            settingsRepository.setSyncStatus("", "", "Never synced")
+            settingsRepository.setHealthResult("Health check not run")
+        }
         certificatePasswordStore = CertificatePasswordStore(context)
         configuredSyncRunner = ConfiguredSyncRunner(db, settingsRepository, certificatePasswordStore)
     }

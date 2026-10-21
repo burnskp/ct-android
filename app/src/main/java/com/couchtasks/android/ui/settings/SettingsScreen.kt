@@ -19,6 +19,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,14 +31,27 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.couchtasks.android.settings.SettingsState
 import com.couchtasks.android.viewmodel.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(settingsViewModel: SettingsViewModel) {
-    val settings by settingsViewModel.settings.collectAsStateWithLifecycle(SettingsState())
+    val settings = settingsViewModel.settings.collectAsStateWithLifecycle(initialValue = null).value ?: return
     val tlsErrorDialogMessage by settingsViewModel.tlsErrorDialogMessage.collectAsStateWithLifecycle(null)
+    val switchJournal by settingsViewModel.switchJournal.collectAsStateWithLifecycle(null)
+    var serverUrl by rememberSaveable(settings.serverUrl) { mutableStateOf(settings.serverUrl) }
+    var serverUrlError by rememberSaveable { mutableStateOf("") }
+    var switchDialogProfile by rememberSaveable { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(settings.profileId) {
+        if (switchDialogProfile != null && switchDialogProfile != settings.profileId) {
+            switchDialogProfile = null
+        }
+    }
+    if (switchDialogProfile != null) {
+        ServerSwitchDialog(settingsViewModel, settings.serverUrl, onDismiss = { switchDialogProfile = null })
+    }
+
     var pendingClientCertificateUri by remember { mutableStateOf<Uri?>(null) }
     val clientCertificateLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -96,7 +111,33 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item { SyncSummaryCard(settings) }
-            item { ServerSwitchCard(settingsViewModel, settings.serverUrl) }
+            if (settings.lastSyncTimestamp.isBlank() && switchJournal == null) {
+                item {
+                    ServerUrlCard(
+                        value = serverUrl,
+                        savedValue = settings.serverUrl,
+                        error = serverUrlError,
+                        onValueChange = { serverUrl = it; serverUrlError = "" },
+                        onSave = {
+                            settingsViewModel.saveServerUrl(
+                                serverUrl,
+                                onValid = { serverUrl = it; serverUrlError = "" },
+                                onInvalid = { serverUrlError = it },
+                            )
+                        },
+                    )
+                }
+            } else {
+                item { SettingsCard("Server URL", settings.serverUrl.ifBlank { "Not configured" }) }
+                item {
+                    Button(
+                        onClick = { switchDialogProfile = settings.profileId },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(if (switchJournal != null) "Resume server switch" else "Switch server")
+                    }
+                }
+            }
             item {
                 CertificateCard(
                     title = "Client certificate",

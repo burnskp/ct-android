@@ -80,7 +80,7 @@ class SettingsViewModel(
                         else -> onInvalid(result.serverUrlErrorMessage())
                     }
                 }
-                .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it; _messages.emit(it.userVisibleMessage()) }
+                .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it; onInvalid(it.userVisibleMessage()) }
         }
     }
 

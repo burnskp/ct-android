@@ -16,7 +16,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         SyncStateEntity::class,
         SyncIssueEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 abstract class CouchTasksDatabase : RoomDatabase() {
@@ -63,7 +63,15 @@ abstract class CouchTasksDatabase : RoomDatabase() {
             }
         }
 
-        fun migrations(): Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Same backfill as the server's v4 migration; every device computes it, so rows stay clean.
+                db.execSQL("ALTER TABLE tasks ADD COLUMN reviewed_at TEXT NOT NULL DEFAULT ''")
+                db.execSQL("UPDATE tasks SET reviewed_at = created_at")
+            }
+        }
+
+        fun migrations(): Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
 
         fun create(context: Context): CouchTasksDatabase = Room.databaseBuilder(
             context.applicationContext,

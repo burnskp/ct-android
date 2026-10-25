@@ -54,6 +54,42 @@ class TasksRepositoryInstrumentedTest {
     }
 
     @Test
+    fun createTask_setsReviewedAtToCreatedAtInWholeSeconds() = runBlocking {
+        val project = repository.createProject("Home")
+        val task = repository.createTask(project.uuid, "Read")
+
+        assertEquals(task.createdAt, task.reviewedAt)
+        assertTrue(Regex("""\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ""").matches(task.reviewedAt))
+    }
+
+    @Test
+    fun editTask_leavesReviewedAtUnchanged() = runBlocking {
+        val project = repository.createProject("Home")
+        val task = repository.createTask(project.uuid, "Read")
+        db.taskDao().update(task.copy(reviewedAt = "2026-01-01T00:00:00Z", syncDirty = false))
+
+        val edited = repository.editTask(task.uuid, "Read more", "", project.uuid, TaskStatus.Pending)
+
+        assertEquals("2026-01-01T00:00:00Z", edited.reviewedAt)
+    }
+
+    @Test
+    fun markReviewed_marksDirtyWithoutTouchingUpdatedAt() = runBlocking {
+        val project = repository.createProject("Home")
+        val task = repository.createTask(project.uuid, "Read")
+        db.taskDao().update(
+            task.copy(updatedAt = "2026-01-01T00:00:00Z", reviewedAt = "2026-01-01T00:00:00Z", syncDirty = false),
+        )
+
+        val reviewed = repository.markReviewed(task.uuid)
+
+        assertTrue(reviewed.syncDirty)
+        assertEquals("2026-01-01T00:00:00Z", reviewed.updatedAt)
+        assertTrue(reviewed.reviewedAt > "2026-01-01T00:00:00Z")
+        assertEquals(reviewed, db.taskDao().get(task.uuid))
+    }
+
+    @Test
     fun ensureInbox_createsDirtyRevisionZeroInboxOnlyOnce() = runBlocking {
         val first = repository.ensureInbox()
         val second = repository.ensureInbox()

@@ -44,6 +44,7 @@ fun TaskEntity.toSyncTask(): SyncTask = SyncTask(
     completedAt = completedAt,
     syncRevision = syncRevision,
     syncDirty = syncDirty,
+    reviewedAt = reviewedAt,
 )
 
 fun SyncTombstoneEntity.toSyncTombstone(): SyncTombstone = SyncTombstone(

@@ -1,6 +1,9 @@
 package com.couchtasks.android.sync
 
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -57,6 +60,7 @@ class SyncModelsJsonTest {
                         completedAt = null,
                         syncRevision = 4,
                         syncDirty = true,
+                        reviewedAt = "2026-04-27T10:03:00Z",
                     ),
                 ),
                 tombstones = listOf(
@@ -80,7 +84,40 @@ class SyncModelsJsonTest {
         assertTrue(encoded.contains("\"sync_dirty\":true"))
         assertTrue(encoded.contains("\"entity_type\":\"task\""))
         assertTrue(encoded.contains("\"deleted_at\":\"2026-04-27T10:05:00Z\""))
+        assertTrue(encoded.contains("\"reviewed_at\":\"2026-04-27T10:03:00Z\""))
     }
+
+    @Test
+    fun v4RequestFixture_roundTripsIncludingReviewedAt() {
+        val fixture = fixture("request.json")
+        val decoded = SyncJson.decodeFromString(SyncRequest.serializer(), fixture)
+
+        assertEquals(listOf("2026-04-27T10:03:00Z", "2026-04-27T09:00:00Z"), decoded.tasks.map { it.reviewedAt })
+        assertEquals(parse(fixture), parse(SyncJson.encodeToString(SyncRequest.serializer(), decoded)))
+    }
+
+    @Test
+    fun v4ResponseFixture_roundTripsIncludingReviewedAt() {
+        val fixture = fixture("response.json")
+        val decoded = SyncJson.decodeFromString(SyncResponse.serializer(), fixture)
+
+        assertEquals("2026-04-27T10:03:00Z", decoded.tasks.single().reviewedAt)
+        assertEquals(parse(fixture), parse(SyncJson.encodeToString(SyncResponse.serializer(), decoded)))
+    }
+
+    @Test
+    fun preV4TaskWithoutReviewedAt_decodesAsNull() {
+        val legacy = fixture("response.json").replace(",\n      \"reviewed_at\": \"2026-04-27T10:03:00Z\"", "")
+        val decoded = SyncJson.decodeFromString(SyncResponse.serializer(), legacy)
+
+        assertNull(decoded.tasks.single().reviewedAt)
+    }
+
+    /** Copied verbatim from couch-tasks `tests/fixtures/sync/` (commit 7deae65). */
+    private fun fixture(name: String): String =
+        requireNotNull(javaClass.getResource("/sync/$name")) { "Missing fixture $name" }.readText()
+
+    private fun parse(json: String): JsonElement = Json.parseToJsonElement(json)
 
     private companion object {
         const val GUIDE_EMPTY_REQUEST = """

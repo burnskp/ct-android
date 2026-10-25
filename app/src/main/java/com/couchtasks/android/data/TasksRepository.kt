@@ -143,6 +143,7 @@ class TasksRepository(
                 completedAt = if (validStatus == TaskStatus.Done) now else null,
                 syncRevision = 0,
                 syncDirty = true,
+                reviewedAt = now,
             ).also { tasks.insert(it) }
         }
     }
@@ -265,6 +266,15 @@ class TasksRepository(
                 }
             }
             tasks.get(taskUuid) ?: restored
+        }
+    }
+
+    /** An explicit review: syncs the new `reviewed_at` without counting as an edit, like the CLI's `mark_reviewed`. */
+    suspend fun markReviewed(taskUuid: String): TaskEntity = WriteSyncMutex.mutex.withLock {
+        db.requireNotSwitching()
+        db.withTransaction {
+            val task = requireNotNull(tasks.get(taskUuid)) { "Task not found" }
+            task.copy(reviewedAt = utcNowRfc3339(), syncDirty = true).also { tasks.update(it) }
         }
     }
 

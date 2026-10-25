@@ -100,6 +100,34 @@ class CouchTasksDatabaseMigrationInstrumentedTest {
         migrated.close()
     }
 
+    @Test
+    fun migration4To5_backfillsReviewedAtFromCreatedAtWithoutDirtyingRows() {
+        helper.createDatabase("migration-v5", 4).apply {
+            insertVersion1Project()
+            execSQL(
+                """
+                INSERT INTO tasks(
+                    uuid, project_uuid, title, notes, status, sort_order, created_at, updated_at,
+                    completed_at, sync_revision, sync_dirty
+                ) VALUES (
+                    'task-1', 'project-1', 'Read', '', 'pending', 1,
+                    '2026-04-27T10:03:00Z', '2026-04-28T09:00:00Z', null, 9, 0
+                )
+                """.trimIndent(),
+            )
+            close()
+        }
+        val migrated = helper.runMigrationsAndValidate("migration-v5", 5, true, *CouchTasksDatabase.migrations())
+        migrated.query("SELECT reviewed_at, created_at, updated_at, sync_revision, sync_dirty FROM tasks WHERE uuid = 'task-1'").use {
+            assertTrue(it.moveToFirst())
+            assertEquals(it.getString(1), it.getString(0))
+            assertEquals("2026-04-28T09:00:00Z", it.getString(2))
+            assertEquals(9, it.getLong(3))
+            assertEquals(0, it.getInt(4))
+        }
+        migrated.close()
+    }
+
     private fun SupportSQLiteDatabase.insertVersion1Project() {
         execSQL(
             """

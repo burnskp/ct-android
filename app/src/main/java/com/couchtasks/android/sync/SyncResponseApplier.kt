@@ -92,10 +92,10 @@ class SyncResponseApplier(
         if (db.projectDao().get(task.projectUuid) == null) {
             throw InvalidSyncResponseException("Task ${task.uuid} references missing project ${task.projectUuid}")
         }
-        db.taskDao().get(task.uuid)?.let { existing ->
+        val existing = db.taskDao().get(task.uuid)?.also { existing ->
             rejectRevisionRegression("Task ${task.uuid}", localRevision = existing.syncRevision, incomingRevision = task.syncRevision)
         }
-        db.taskDao().upsert(task.toCleanEntity())
+        db.taskDao().upsert(task.toCleanEntity(existing))
     }
 
     private suspend fun applyTombstone(tombstone: SyncTombstone) {
@@ -152,7 +152,7 @@ class SyncResponseApplier(
         )
     }
 
-    private fun SyncTask.toCleanEntity(): TaskEntity {
+    private fun SyncTask.toCleanEntity(existing: TaskEntity?): TaskEntity {
         val validStatus = TaskStatus.requireValid(status)
         val validTitle = requireTaskTitle(title)
         return TaskEntity(
@@ -167,6 +167,8 @@ class SyncResponseApplier(
             completedAt = if (validStatus == TaskStatus.Done) completedAt else null,
             syncRevision = syncRevision,
             syncDirty = false,
+            // A pre-v4 server omits reviewed_at; keep what we have rather than failing the sync.
+            reviewedAt = reviewedAt ?: existing?.reviewedAt ?: createdAt,
         )
     }
 

@@ -50,6 +50,8 @@ data class SyncTask(
     @SerialName("completed_at") val completedAt: String? = null,
     @SerialName("sync_revision") val syncRevision: Long = 0,
     @SerialName("sync_dirty") val syncDirty: Boolean = true,
+    /** Required by v4 servers; null only when decoding a response from an older server. */
+    @SerialName("reviewed_at") val reviewedAt: String? = null,
 )
 
 @Serializable

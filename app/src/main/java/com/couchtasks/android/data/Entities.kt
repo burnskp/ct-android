@@ -53,6 +53,7 @@ data class TaskEntity(
     @ColumnInfo(name = "completed_at") val completedAt: String? = null,
     @ColumnInfo(name = "sync_revision") val syncRevision: Long = 0,
     @ColumnInfo(name = "sync_dirty") val syncDirty: Boolean = true,
+    @ColumnInfo(name = "reviewed_at", defaultValue = "") val reviewedAt: String,
 )
 
 @Entity(

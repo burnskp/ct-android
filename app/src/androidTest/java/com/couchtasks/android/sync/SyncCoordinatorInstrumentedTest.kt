@@ -75,6 +75,7 @@ class SyncCoordinatorInstrumentedTest {
         assertTrue(requestBody.contains("\"checkpoint\":0"))
         assertTrue(requestBody.contains("\"uuid\":\"${project.uuid}\""))
         assertTrue(requestBody.contains("\"sync_dirty\":true"))
+        assertTrue(requestBody.contains("\"reviewed_at\":\"${task.createdAt}\""))
         assertEquals("10", db.syncStateDao().get(SyncExporter.CHECKPOINT_KEY))
         assertEquals(1, db.projectDao().get(project.uuid)!!.syncRevision)
         assertFalse(db.projectDao().get(project.uuid)!!.syncDirty)
@@ -373,6 +374,52 @@ class SyncCoordinatorInstrumentedTest {
         assertEquals("1", db.syncStateDao().get(SyncExporter.CHECKPOINT_KEY))
     }
 
+    @Test
+    fun responseReviewedAtOverwritesLocalValue() = runBlocking {
+        val project = repository.createProject("Home")
+        val task = repository.createTask(project.uuid, "Read")
+        val coordinator = coordinatorReturning {
+            response(
+                body = """
+                {
+                  "checkpoint": 3,
+                  "projects": [${projectJson(project.uuid, "Home", "home", 1, syncDirty = false)}],
+                  "tasks": [${taskJson(task.uuid, project.uuid, "Read", "", 1, 2, syncDirty = false, reviewedAt = "2026-10-20T08:00:00Z")}],
+                  "tombstones": []
+                }
+                """.trimIndent(),
+            )
+        }
+
+        assertTrue(coordinator.syncOnce("https://tasks.example.com") is SyncRunResult.Success)
+        assertEquals("2026-10-20T08:00:00Z", db.taskDao().get(task.uuid)!!.reviewedAt)
+    }
+
+    @Test
+    fun responseWithoutReviewedAt_keepsLocalValueOrFallsBackToCreatedAt() = runBlocking {
+        val project = repository.createProject("Home")
+        val local = repository.createTask(project.uuid, "Local")
+        val coordinator = coordinatorReturning {
+            response(
+                body = """
+                {
+                  "checkpoint": 3,
+                  "projects": [${projectJson(project.uuid, "Home", "home", 1, syncDirty = false)}],
+                  "tasks": [
+                    ${taskJson(local.uuid, project.uuid, "Local", "", 1, 2, syncDirty = false, reviewedAt = null)},
+                    ${taskJson("server-task", project.uuid, "Remote", "", 2, 2, syncDirty = false, reviewedAt = null)}
+                  ],
+                  "tombstones": []
+                }
+                """.trimIndent(),
+            )
+        }
+
+        assertTrue(coordinator.syncOnce("https://tasks.example.com") is SyncRunResult.Success)
+        assertEquals(local.reviewedAt, db.taskDao().get(local.uuid)!!.reviewedAt)
+        assertEquals("2026-04-27T10:03:00Z", db.taskDao().get("server-task")!!.reviewedAt)
+    }
+
     private fun coordinatorReturning(handler: (okhttp3.Request) -> Response): SyncCoordinator = SyncCoordinator(
         db = db,
         transport = SyncTransport(
@@ -426,6 +473,7 @@ class SyncCoordinatorInstrumentedTest {
         sortOrder: Long,
         revision: Long,
         syncDirty: Boolean,
+        reviewedAt: String? = "2026-04-27T10:03:00Z",
     ): String = """
         {
           "uuid": "$uuid",
@@ -438,7 +486,7 @@ class SyncCoordinatorInstrumentedTest {
           "updated_at": "2026-04-27T10:03:00Z",
           "completed_at": null,
           "sync_revision": $revision,
-          "sync_dirty": $syncDirty
+          "sync_dirty": $syncDirty${reviewedAt?.let { ",\n  \"reviewed_at\": \"$it\"" }.orEmpty()}
         }
     """.trimIndent()
 }

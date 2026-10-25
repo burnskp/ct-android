@@ -91,7 +91,7 @@ class ServerSwitchCoordinator(
                         request.projects.filter { it.syncDirty }.forEach { p -> staging.projectDao().upsert(ProjectEntity(p.uuid, p.name, p.nameNormalized,
                             p.createdAt, p.updatedAt, p.archivedAt, 0, true)) }
                         request.tasks.filter { it.syncDirty }.forEach { t -> staging.taskDao().upsert(TaskEntity(t.uuid, t.projectUuid, t.title, t.notes,
-                            t.status, t.sortOrder.toInt(), t.createdAt, t.updatedAt, t.completedAt, 0, true)) }
+                            t.status, t.sortOrder.toInt(), t.createdAt, t.updatedAt, t.completedAt, 0, true, t.reviewedAt ?: t.createdAt)) }
                         SyncResponseApplier(staging).apply(response)
                         require(staging.projectDao().dirtyProjects().isEmpty() && staging.taskDao().dirtyTasks().isEmpty()) {
                             "Destination response did not acknowledge all copied records"

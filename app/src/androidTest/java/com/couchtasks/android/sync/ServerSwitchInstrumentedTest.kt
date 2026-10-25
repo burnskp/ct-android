@@ -38,7 +38,7 @@ class ServerSwitchInstrumentedTest {
         db = Room.databaseBuilder(context, CouchTasksDatabase::class.java, name).build()
         settings = SettingsRepository(context, db)
     }
-    @After fun teardown() = runBlocking {
+    @After fun teardown() = runBlocking<Unit> {
         coordinator().abandon()
         db.close()
         context.deleteDatabase(name)

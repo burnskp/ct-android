@@ -5,7 +5,10 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
 import android.os.Build
-import android.os.SystemClock
+import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import com.couchtasks.android.CouchTasksApplication
@@ -15,9 +18,12 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 
 class ShareTargetManifestInstrumentedTest {
+    @get:Rule val compose = createEmptyComposeRule()
+
     @Test
     fun appResolvesTextPlainSendIntentToShareReceiver() {
         val context = ApplicationProvider.getApplicationContext<Context>()
@@ -44,8 +50,9 @@ class ShareTargetManifestInstrumentedTest {
             .putExtra(Intent.EXTRA_TITLE, "Example page")
             .putExtra(Intent.EXTRA_TEXT, "Read this: https://www.example.com/article")
 
-        ActivityScenario.launch<ShareReceiverActivity>(intent).use {
-            waitUntilTaskCreated(app)
+        ActivityScenario.launch<ShareReceiverActivity>(intent).use { scenario ->
+            compose.onNodeWithText("✓").performClick()
+            compose.waitUntil(5_000) { scenario.state == Lifecycle.State.DESTROYED }
         }
 
         runBlocking {
@@ -61,19 +68,6 @@ class ShareTargetManifestInstrumentedTest {
             assertEquals(0, task.syncRevision)
             assertTrue(task.syncDirty)
         }
-    }
-
-    private fun waitUntilTaskCreated(app: CouchTasksApplication) {
-        val deadline = SystemClock.uptimeMillis() + 5_000
-        while (SystemClock.uptimeMillis() < deadline) {
-            val created = runBlocking {
-                val inbox = app.appContainer.database.projectDao().getByNormalizedName(TasksRepository.INBOX_NORMALIZED)
-                inbox != null && app.appContainer.database.taskDao().tasksForProject(inbox.uuid).isNotEmpty()
-            }
-            if (created) return
-            SystemClock.sleep(50)
-        }
-        error("Timed out waiting for share task creation")
     }
 
     private fun PackageManager.queryIntentActivitiesCompat(intent: Intent): List<ResolveInfo> =

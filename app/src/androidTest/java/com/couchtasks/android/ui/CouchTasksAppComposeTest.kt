@@ -389,10 +389,13 @@ class CouchTasksAppComposeTest {
         compose.onAllNodesWithText("↑").assertCountEquals(0)
         compose.onAllNodesWithText("↓").assertCountEquals(0)
         compose.onAllNodesWithText("⋮").assertCountEquals(0)
+        // Drag past the second row's center but not the third's, independent of screen density.
+        val rowStep = compose.onNodeWithText("Second task").fetchSemanticsNode().boundsInRoot.center.y -
+            compose.onNodeWithText("First task").fetchSemanticsNode().boundsInRoot.center.y
         compose.onNodeWithText("First task").performTouchInput {
             down(center)
             advanceEventTime(1_000)
-            moveBy(Offset(0f, 140f))
+            moveBy(Offset(0f, rowStep * 1.5f))
             up()
         }
 

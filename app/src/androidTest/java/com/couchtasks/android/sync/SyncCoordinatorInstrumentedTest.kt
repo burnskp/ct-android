@@ -114,7 +114,7 @@ class SyncCoordinatorInstrumentedTest {
         assertEquals(SyncIssueKind.CHECKPOINT_AHEAD.name, issue.kind)
         assertEquals(409, issue.httpStatus)
         assertEquals(7, issue.requestCheckpoint)
-        assertEquals(5, issue.serverCheckpoint)
+        assertEquals(5L, issue.serverCheckpoint)
         assertEquals(detail, issue.detail)
     }
 

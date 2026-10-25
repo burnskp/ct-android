@@ -4,8 +4,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,6 +41,7 @@ import com.couchtasks.android.viewmodel.ProjectsViewModel
 import com.couchtasks.android.viewmodel.SettingsViewModel
 import com.couchtasks.android.viewmodel.TasksViewModel
 import com.couchtasks.android.viewmodel.SyncIssueViewModel
+import kotlinx.coroutines.flow.collectLatest
 
 @Composable
 fun CouchTasksNavHost(
@@ -80,6 +83,16 @@ fun CouchTasksNavHost(
     LaunchedEffect(repository) { runCatching { repository.ensureInbox() } }
     LaunchedEffect(tasksViewModel) {
         tasksViewModel.messages.collect { snackbarHostState.showSnackbar(it) }
+    }
+    LaunchedEffect(tasksViewModel) {
+        tasksViewModel.completions.collectLatest { event ->
+            val result = snackbarHostState.showSnackbar(
+                message = "Completed \"${event.title}\"",
+                actionLabel = "Undo",
+                duration = SnackbarDuration.Short,
+            )
+            if (result == SnackbarResult.ActionPerformed) tasksViewModel.undoComplete(event)
+        }
     }
     LaunchedEffect(projectsViewModel) {
         projectsViewModel.messages.collect { snackbarHostState.showSnackbar(it) }

@@ -429,6 +429,26 @@ class CouchTasksAppComposeTest {
     }
 
     @Test
+    fun completingTask_undoFromSnackbarRestoresIt() {
+        lateinit var taskUuid: String
+        runBlocking {
+            val inbox = repository.ensureInbox()
+            taskUuid = repository.createTask(inbox.uuid, "Undo task").uuid
+        }
+
+        setAppContent()
+
+        compose.waitUntilNodeWithText("Undo task")
+        compose.onNodeWithTag("TaskCheckbox-$taskUuid").performClick()
+        compose.waitUntilNodeWithText("Undo")
+        compose.onNodeWithText("Undo").performClick()
+        compose.waitUntil(timeoutMillis = 5_000) {
+            runBlocking { db.taskDao().get(taskUuid)?.status == TaskStatus.Pending }
+        }
+        compose.waitUntilNodeWithText("Undo task")
+    }
+
+    @Test
     fun settingsScreen_showsRequiredSyncFields() {
         setAppContent()
 

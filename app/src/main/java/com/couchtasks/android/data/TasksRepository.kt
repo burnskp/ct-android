@@ -240,6 +240,34 @@ class TasksRepository(
         }
     }
 
+    suspend fun undoCompleteTask(taskUuid: String, previousSortOrder: Int): TaskEntity = WriteSyncMutex.mutex.withLock {
+        db.requireNotSwitching()
+        db.withTransaction {
+            val task = requireNotNull(tasks.get(taskUuid)) { "Task not found" }
+            if (task.status != TaskStatus.Done) return@withTransaction task
+            val now = utcNowRfc3339()
+            val restored = task.copy(
+                status = TaskStatus.Pending,
+                sortOrder = 0,
+                updatedAt = now,
+                completedAt = null,
+                syncDirty = true,
+            )
+            tasks.update(restored)
+            val others = tasks.pendingTasks(task.projectUuid).filterNot { it.uuid == taskUuid }
+            val ordered = others.toMutableList().apply {
+                add((previousSortOrder - 1).coerceIn(0, others.size), restored)
+            }
+            ordered.forEachIndexed { index, pending ->
+                val wanted = index + 1
+                if (pending.sortOrder != wanted) {
+                    tasks.update(pending.copy(sortOrder = wanted, updatedAt = now, syncDirty = true))
+                }
+            }
+            tasks.get(taskUuid) ?: restored
+        }
+    }
+
     suspend fun deleteTask(taskUuid: String) = WriteSyncMutex.mutex.withLock {
         db.requireNotSwitching()
         db.withTransaction {

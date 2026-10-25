@@ -222,6 +222,28 @@ class TasksRepositoryInstrumentedTest {
         assertEquals(emptyList<Pair<String, Int>>(), pendingUuidOrders(destination.uuid))
     }
 
+    @Test
+    fun undoCompleteTask_restoresOriginalPendingPosition() = runBlocking {
+        val project = repository.createProject("Undo")
+        val first = repository.createTask(project.uuid, "First")
+        val second = repository.createTask(project.uuid, "Second")
+        val third = repository.createTask(project.uuid, "Third")
+
+        repository.completeTask(second.uuid)
+        assertEquals(listOf(first.uuid to 1, third.uuid to 2), pendingUuidOrders(project.uuid))
+
+        val restored = repository.undoCompleteTask(second.uuid, previousSortOrder = 2)
+        assertEquals(TaskStatus.Pending, restored.status)
+        assertNull(restored.completedAt)
+        assertEquals(2, restored.sortOrder)
+        assertTrue(restored.syncDirty)
+        assertEquals(listOf(first.uuid to 1, second.uuid to 2, third.uuid to 3), pendingUuidOrders(project.uuid))
+
+        val unchanged = repository.undoCompleteTask(second.uuid, previousSortOrder = 1)
+        assertEquals(2, unchanged.sortOrder)
+        assertEquals(listOf(first.uuid to 1, second.uuid to 2, third.uuid to 3), pendingUuidOrders(project.uuid))
+    }
+
     private suspend fun pendingUuidOrders(projectUuid: String): List<Pair<String, Int>> =
         db.taskDao().pendingTasks(projectUuid).map { it.uuid to it.sortOrder }
 

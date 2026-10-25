@@ -9,12 +9,16 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 
+data class CompletedTask(val uuid: String, val title: String, val previousSortOrder: Int)
+
 class TasksViewModel(
     private val repository: TasksRepository,
     private val onLocalChange: () -> Unit,
 ) : ViewModel() {
     private val _messages = MutableSharedFlow<String>()
     val messages: SharedFlow<String> = _messages.asSharedFlow()
+    private val _completions = MutableSharedFlow<CompletedTask>()
+    val completions: SharedFlow<CompletedTask> = _completions.asSharedFlow()
 
     fun createTask(
         projectUuid: String,
@@ -55,7 +59,17 @@ class TasksViewModel(
     }
 
     fun completeTask(taskUuid: String) {
-        launchTaskAction { repository.completeTask(taskUuid) }
+        launchTaskAction {
+            val before = repository.getTask(taskUuid)
+            repository.completeTask(taskUuid)
+            if (before != null && before.status == TaskStatus.Pending) {
+                _completions.emit(CompletedTask(before.uuid, before.title, before.sortOrder))
+            }
+        }
+    }
+
+    fun undoComplete(event: CompletedTask) {
+        launchTaskAction { repository.undoCompleteTask(event.uuid, event.previousSortOrder) }
     }
 
     fun reopenTask(taskUuid: String) {

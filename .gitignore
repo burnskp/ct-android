@@ -3,6 +3,7 @@
 .pre-commit-config.yaml
 .gradle/
 .kotlin/
+/.avd/
 __pycache__/
 build/
 app/build/

@@ -39,6 +39,15 @@ make sideload         # minified APK signed with the local debug key
 make release          # minified APK signed with explicit release credentials
 ```
 
+To try the app in an emulator from the Nix shell (requires KVM):
+
+```sh
+make start-emulator   # boots a headless API 36 emulator, installs and launches the app, opens scrcpy
+make stop-emulator    # shuts down the emulator and scrcpy
+```
+
+The first `make start-emulator` creates the AVD in the ignored `.avd/` directory, which also holds the emulator log. Running it again while the emulator is up just reinstalls and relaunches the app. Pass `SCRCPY=0` to skip the viewer or `EMULATOR_FLAGS=...` to add emulator flags.
+
 Before dependency maintenance, run `make check`, update one dependency group at a time, then run `make verify` with a device/emulator. Hosted CI runs unit tests, debug and release lint, debug and unsigned release builds, and instrumented-test compilation on pushes to main, pull requests, and manual dispatch:
 
 ```sh

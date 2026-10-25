@@ -38,6 +38,10 @@
           androidPackages = pkgs.androidenv.composeAndroidPackages {
             platformVersions = [ "36" ];
             buildToolsVersions = [ "36.0.0" ];
+            includeEmulator = true;
+            includeSystemImages = true;
+            systemImageTypes = [ "google_apis" ];
+            abiVersions = [ "x86_64" ];
           };
           androidSdk = androidPackages.androidsdk;
         in
@@ -56,6 +60,7 @@
             pkgs.gnumake
             pkgs.git
             pkgs.python3
+            pkgs.scrcpy
           ]
           ++ preCommitCheck.enabledPackages;
           shellHook = preCommitCheck.shellHook + ''

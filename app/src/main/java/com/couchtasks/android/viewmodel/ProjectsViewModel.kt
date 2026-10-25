@@ -36,6 +36,13 @@ class ProjectsViewModel(
         }
     }
 
+    fun deleteProjects(projectUuids: Collection<String>, onSuccess: () -> Unit = {}) {
+        launchProjectAction {
+            repository.deleteProjects(projectUuids)
+            onSuccess()
+        }
+    }
+
     private fun launchProjectAction(block: suspend () -> Unit) {
         viewModelScope.launch {
             runCatching { block() }

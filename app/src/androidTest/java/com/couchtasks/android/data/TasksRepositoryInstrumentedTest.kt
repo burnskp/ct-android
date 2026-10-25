@@ -147,6 +147,37 @@ class TasksRepositoryInstrumentedTest {
     }
 
     @Test
+    fun deleteProjects_removesAllSelectedAndCreatesTombstones() = runBlocking {
+        val first = repository.createProject("Errands")
+        val child = repository.createTask(first.uuid, "Groceries")
+        val second = repository.createProject("Empty")
+        val kept = repository.createProject("Work")
+
+        repository.deleteProjects(listOf(first.uuid, second.uuid))
+
+        assertNull(db.projectDao().get(first.uuid))
+        assertNull(db.projectDao().get(second.uuid))
+        assertNull(db.taskDao().get(child.uuid))
+        assertNotNull(db.projectDao().get(kept.uuid))
+        assertNotNull(db.tombstoneDao().get(TasksRepository.ENTITY_TASK, child.uuid))
+        assertNotNull(db.tombstoneDao().get(TasksRepository.ENTITY_PROJECT, first.uuid))
+        assertNotNull(db.tombstoneDao().get(TasksRepository.ENTITY_PROJECT, second.uuid))
+    }
+
+    @Test
+    fun deleteProjects_rollsBackWhenAnyProjectIsMissing() = runBlocking {
+        val project = repository.createProject("Errands")
+        val child = repository.createTask(project.uuid, "Groceries")
+
+        val result = runCatching { repository.deleteProjects(listOf(project.uuid, "missing")) }
+
+        assertTrue(result.isFailure)
+        assertNotNull(db.projectDao().get(project.uuid))
+        assertNotNull(db.taskDao().get(child.uuid))
+        assertNull(db.tombstoneDao().get(TasksRepository.ENTITY_PROJECT, project.uuid))
+    }
+
+    @Test
     fun observeProjectsWithCounts_sortsInboxThenPendingProjectsThenEmptyProjects() = runBlocking {
         val inbox = repository.ensureInbox()
         val emptyAlpha = repository.createProject("Alpha Empty")

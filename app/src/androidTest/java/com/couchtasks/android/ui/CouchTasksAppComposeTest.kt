@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -116,6 +117,36 @@ class CouchTasksAppComposeTest {
         compose.onNodeWithText("Projects").performClick()
         compose.waitUntilNodeWithText("Inbox")
         compose.onNodeWithText("1 pending · 1 done").assertIsDisplayed()
+    }
+
+    @Test
+    fun projects_selectEmptyAndDeleteSelected() {
+        runBlocking {
+            repository.ensureInbox()
+            val busy = repository.createProject("Busy")
+            repository.createTask(busy.uuid, "Keep me")
+            repository.createProject("Empty One")
+            repository.createProject("Empty Two")
+        }
+
+        setAppContent()
+
+        compose.onNodeWithText("Projects").performClick()
+        compose.waitUntilNodeWithText("Empty One")
+        compose.onNodeWithText("Empty One").performTouchInput { longClick() }
+        compose.onNodeWithText("1 selected").assertIsDisplayed()
+        compose.onNodeWithText("Select empty").performClick()
+        compose.onNodeWithText("2 selected").assertIsDisplayed()
+        compose.onNodeWithText("Delete").performClick()
+        compose.waitUntilNodeWithText("Delete Projects")
+        compose.onAllNodesWithText("Delete")[1].performClick()
+
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("Empty One").fetchSemanticsNodes().isEmpty()
+        }
+        compose.onAllNodesWithText("Empty Two").assertCountEquals(0)
+        compose.onNodeWithText("Busy").assertIsDisplayed()
+        compose.onNodeWithText("Inbox").assertIsDisplayed()
     }
 
     @Test

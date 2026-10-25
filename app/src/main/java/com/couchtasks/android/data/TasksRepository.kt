@@ -83,32 +83,39 @@ class TasksRepository(
 
     suspend fun deleteProject(projectUuid: String) = WriteSyncMutex.mutex.withLock {
         db.requireNotSwitching()
-        db.withTransaction {
-            val project = requireNotNull(projects.get(projectUuid)) { "Project not found" }
-            val now = utcNowRfc3339()
-            tasks.tasksForProject(projectUuid).forEach { task ->
-                tombstones.upsert(
-                    SyncTombstoneEntity(
-                        entityType = ENTITY_TASK,
-                        uuid = task.uuid,
-                        syncRevision = task.syncRevision,
-                        deletedAt = now,
-                        syncDirty = true,
-                    ),
-                )
-            }
+        db.withTransaction { deleteProjectInTransaction(projectUuid) }
+    }
+
+    suspend fun deleteProjects(projectUuids: Collection<String>) = WriteSyncMutex.mutex.withLock {
+        db.requireNotSwitching()
+        db.withTransaction { projectUuids.forEach { deleteProjectInTransaction(it) } }
+    }
+
+    private suspend fun deleteProjectInTransaction(projectUuid: String) {
+        val project = requireNotNull(projects.get(projectUuid)) { "Project not found" }
+        val now = utcNowRfc3339()
+        tasks.tasksForProject(projectUuid).forEach { task ->
             tombstones.upsert(
                 SyncTombstoneEntity(
-                    entityType = ENTITY_PROJECT,
-                    uuid = project.uuid,
-                    syncRevision = project.syncRevision,
+                    entityType = ENTITY_TASK,
+                    uuid = task.uuid,
+                    syncRevision = task.syncRevision,
                     deletedAt = now,
                     syncDirty = true,
                 ),
             )
-            tasks.deleteForProject(projectUuid)
-            projects.delete(projectUuid)
         }
+        tombstones.upsert(
+            SyncTombstoneEntity(
+                entityType = ENTITY_PROJECT,
+                uuid = project.uuid,
+                syncRevision = project.syncRevision,
+                deletedAt = now,
+                syncDirty = true,
+            ),
+        )
+        tasks.deleteForProject(projectUuid)
+        projects.delete(projectUuid)
     }
 
     suspend fun createTask(

@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
@@ -67,7 +69,10 @@ fun AddTaskDialog(
         onDismissRequest = onDismiss,
         title = { Text("New Task") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
@@ -82,6 +87,7 @@ fun AddTaskDialog(
                     onValueChange = { notes = it },
                     label = { Text("Notes") },
                     minLines = 3,
+                    maxLines = 8,
                 )
                 Box {
                     Button(onClick = { projectMenuExpanded = true }, modifier = Modifier.fillMaxWidth()) {

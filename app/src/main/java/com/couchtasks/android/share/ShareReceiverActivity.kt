@@ -6,12 +6,15 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.couchtasks.android.CouchTasksApplication
@@ -41,9 +44,9 @@ class ShareReceiverActivity : ComponentActivity() {
                     onDismissRequest = { if (!submitting) finish() },
                     title = { Text("Add to Couch Tasks") },
                     text = {
-                        Column {
+                        Column(Modifier.verticalScroll(rememberScrollState())) {
                             OutlinedTextField(title, { title = it.take(200) }, label = { Text("Title") }, enabled = !submitting)
-                            OutlinedTextField(notes, { notes = it.take(8000) }, label = { Text("Notes") }, enabled = !submitting)
+                            OutlinedTextField(notes, { notes = it.take(8000) }, label = { Text("Notes") }, enabled = !submitting, maxLines = 8)
                             if (switching != null) Text("Adding is temporarily unavailable during a server switch. Your draft is retained; resume or abandon the switch in Settings.")
                             error?.let { Text(it) }
                         }

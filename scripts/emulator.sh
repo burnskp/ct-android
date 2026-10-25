@@ -15,7 +15,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 AVD_NAME="${AVD_NAME:-couch-tasks-api36}"
-AVD_PACKAGE="${AVD_PACKAGE:-system-images;android-36;google_apis;x86_64}"
+AVD_PACKAGE="${AVD_PACKAGE:-system-images;android-36;google_apis_playstore;x86_64}"
 AVD_DEVICE="${AVD_DEVICE:-pixel_8_pro}"
 EMULATOR_PORT="${EMULATOR_PORT:-5554}"
 EMULATOR_FLAGS="${EMULATOR_FLAGS:-}"
@@ -32,6 +32,13 @@ scrcpy_pid_file="$state_dir/scrcpy.pid"
 emulator_log="$state_dir/emulator.log"
 scrcpy_log="$state_dir/scrcpy.log"
 debug_apk="$repo_root/app/build/outputs/apk/debug/app-debug.apk"
+
+# Background processes outlive this script; setsid (util-linux) also detaches
+# them from the terminal's session when it is available.
+detach=(nohup)
+if command -v setsid >/dev/null 2>&1; then
+	detach+=(setsid)
+fi
 
 die() {
 	echo "$*" >&2
@@ -53,12 +60,12 @@ preflight() {
 	local tool
 	for tool in adb emulator avdmanager; do
 		command -v "$tool" >/dev/null 2>&1 ||
-			die "'$tool' not found. Run inside the Nix dev shell ('nix develop' or direnv)."
+			die "'$tool' not found. Run inside the dev sandbox or add the Android SDK tools to PATH."
 	done
 	local sdk_root="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
 	local image_dir="$sdk_root/${AVD_PACKAGE//;//}"
 	[[ -n "$sdk_root" && -d "$image_dir" ]] ||
-		die "System image not found: $image_dir. Run inside the Nix dev shell ('nix develop' or direnv)."
+		die "System image not found: $image_dir. Run inside the dev sandbox or set ANDROID_HOME to a full SDK."
 	if [[ ! -r /dev/kvm || ! -w /dev/kvm ]]; then
 		echo "Warning: /dev/kvm is not accessible; the emulator will be very slow or fail to start." >&2
 	fi
@@ -77,7 +84,7 @@ boot_emulator() {
 	local flags
 	read -r -a flags <<<"$EMULATOR_FLAGS"
 	echo "Starting emulator '$AVD_NAME' as $serial (log: $emulator_log)..."
-	nohup setsid emulator -avd "$AVD_NAME" -port "$EMULATOR_PORT" \
+	"${detach[@]}" emulator -avd "$AVD_NAME" -port "$EMULATOR_PORT" \
 		-no-window -no-audio -no-boot-anim -netdelay none -netspeed full \
 		"${flags[@]}" >"$emulator_log" 2>&1 </dev/null &
 	echo "$!" >"$emulator_pid_file"
@@ -108,7 +115,7 @@ start_scrcpy() {
 		return
 	fi
 	echo "Opening scrcpy (log: $scrcpy_log)..."
-	nohup setsid scrcpy -s "$serial" --no-audio >"$scrcpy_log" 2>&1 </dev/null &
+	"${detach[@]}" scrcpy -s "$serial" --no-audio >"$scrcpy_log" 2>&1 </dev/null &
 	echo "$!" >"$scrcpy_pid_file"
 }
 

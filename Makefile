@@ -55,13 +55,13 @@ release:
 sideload:
 	$(GRADLE) :app:assembleRelease
 	sdk_root="$${ANDROID_HOME:-$${ANDROID_SDK_ROOT:-}}"
-	build_tools="$${sdk_root:+$$sdk_root/build-tools/36.0.0}"
+	build_tools="$${sdk_root:+$$sdk_root/build-tools/37.0.0}"
 	if [[ -n "$$build_tools" && -x "$$build_tools/zipalign" ]]; then
 		zipalign="$$build_tools/zipalign"
 	elif command -v zipalign >/dev/null 2>&1; then
 		zipalign="zipalign"
 	else
-		echo "zipalign not found. Enter 'nix develop' or set ANDROID_HOME/ANDROID_SDK_ROOT." >&2
+		echo "zipalign not found. Set ANDROID_HOME/ANDROID_SDK_ROOT to an SDK with Build Tools 37.0.0." >&2
 		exit 1
 	fi
 	if [[ -n "$$build_tools" && -x "$$build_tools/apksigner" ]]; then
@@ -69,7 +69,7 @@ sideload:
 	elif command -v apksigner >/dev/null 2>&1; then
 		apksigner="apksigner"
 	else
-		echo "apksigner not found. Enter 'nix develop' or set ANDROID_HOME/ANDROID_SDK_ROOT." >&2
+		echo "apksigner not found. Set ANDROID_HOME/ANDROID_SDK_ROOT to an SDK with Build Tools 37.0.0." >&2
 		exit 1
 	fi
 	if [[ ! -f "$(DEBUG_KEYSTORE)" ]]; then

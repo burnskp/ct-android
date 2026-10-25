@@ -16,7 +16,7 @@ Use a strong password and retain both store and key passwords. Certificate ident
 
 ## Local public release
 
-Enter the Nix shell, or provide JDK 17, Python 3, Git, GNU Make, Bash, and `ANDROID_HOME` with Build Tools 36.0.0. Commit the release changes and create or check out the release tag first (for example, `git tag v0.1.0`). `make release` requires exactly one `v*` tag on `HEAD` and validates it before building or signing. Supply these environment variables using a password manager or interactive prompts, not command-line password arguments:
+Use the dev sandbox, or provide JDK 17, Python 3, Git, GNU Make, Bash, and `ANDROID_HOME` with Build Tools 37.0.0. Commit the release changes and create or check out the release tag first (for example, `git tag v0.1.0`). `make release` requires exactly one `v*` tag on `HEAD` and validates it before building or signing. Supply these environment variables using a password manager or interactive prompts, not command-line password arguments:
 
 ```sh
 export ANDROID_KEYSTORE_PATH="$HOME/.android-release/couch-tasks.jks"

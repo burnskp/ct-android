@@ -4,16 +4,12 @@ Android task app with local Room storage, Compose UI, share-target import, and o
 
 ## Development
 
-Use JDK 17 and the checked-in Gradle wrapper. On x86-64 Linux, the Nix shell supplies the JDK and Android SDK:
+Use JDK 17 and the checked-in Gradle wrapper. The cloister dev sandbox supplies JDK 17, the Android SDK (Platform 36, Build Tools 37.0.0, emulator and API 36 Play Store system image), scrcpy, and a per-project `~/.gradle`. The Nix shell (`nix develop`, or direnv via `.envrc`) only adds the pre-commit formatting hook.
 
-```sh
-nix develop
-```
-
-The Nix shell currently supports only x86-64 Linux. On other systems, or without Nix:
+Outside the sandbox:
 
 1. Install JDK 17 and Android Studio or Android SDK command-line tools.
-2. Install Android SDK Platform 36 and Build Tools 36.0.0 using SDK Manager. With command-line tools, run `sdkmanager "platforms;android-36" "build-tools;36.0.0"` and accept licenses with `sdkmanager --licenses`.
+2. Install Android SDK Platform 36 and Build Tools 37.0.0 using SDK Manager. With command-line tools, run `sdkmanager "platforms;android-36" "build-tools;37.0.0"` and accept licenses with `sdkmanager --licenses`.
 3. Set `JAVA_HOME` to JDK 17 and `ANDROID_HOME` to your SDK directory. Alternatively, set `sdk.dir` in your ignored `local.properties`. Remove stale SDK paths when switching installations.
 4. In Android Studio, select JDK 17 under Settings → Build, Execution, Deployment → Build Tools → Gradle → Gradle JDK.
 
@@ -39,14 +35,14 @@ make sideload         # minified APK signed with the local debug key
 make release          # minified APK signed with explicit release credentials
 ```
 
-To try the app in an emulator from the Nix shell (requires KVM):
+To try the app in an emulator (requires KVM and the `system-images;android-36;google_apis_playstore;x86_64` image, which the sandbox provides):
 
 ```sh
 make start-emulator   # boots a headless API 36 emulator, installs and launches the app, opens scrcpy
 make stop-emulator    # shuts down the emulator and scrcpy
 ```
 
-The first `make start-emulator` creates the AVD in the ignored `.avd/` directory, which also holds the emulator log. Running it again while the emulator is up just reinstalls and relaunches the app. Pass `SCRCPY=0` to skip the viewer or `EMULATOR_FLAGS=...` to add emulator flags.
+The first `make start-emulator` creates the AVD in `$ANDROID_AVD_HOME` (the sandbox's per-project `~/.android/avd`, or the ignored `.avd/` directory when unset), which also holds the emulator log. Running it again while the emulator is up just reinstalls and relaunches the app. Pass `SCRCPY=0` to skip the viewer or `EMULATOR_FLAGS=...` to add emulator flags.
 
 Before dependency maintenance, run `make check`, update one dependency group at a time, then run `make verify` with a device/emulator. Hosted CI runs unit tests, debug and release lint, debug and unsigned release builds, and instrumented-test compilation on pushes to main, pull requests, and manual dispatch:
 

@@ -18,56 +18,7 @@
     let
       systems = [ "x86_64-linux" ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
-      mkPkgs =
-        system:
-        import nixpkgs {
-          inherit system;
-          config = {
-            allowUnfree = true;
-            android_sdk.accept_license = true;
-          };
-        };
-
-      mkDevShell =
-        { pkgs
-        , name
-        , preCommitCheck
-        ,
-        }:
-        let
-          androidPackages = pkgs.androidenv.composeAndroidPackages {
-            platformVersions = [ "36" ];
-            buildToolsVersions = [ "36.0.0" ];
-            includeEmulator = true;
-            includeSystemImages = true;
-            systemImageTypes = [ "google_apis" ];
-            abiVersions = [ "x86_64" ];
-          };
-          androidSdk = androidPackages.androidsdk;
-        in
-        pkgs.mkShell {
-          inherit name;
-          JAVA_HOME = "${pkgs.jdk17}/lib/openjdk";
-          ANDROID_HOME = "${androidSdk}/libexec/android-sdk";
-          ANDROID_SDK_ROOT = "${androidSdk}/libexec/android-sdk";
-          GRADLE_OPTS = "-Dorg.gradle.project.android.aapt2FromMavenOverride=${androidSdk}/libexec/android-sdk/build-tools/36.0.0/aapt2";
-
-          packages = [
-            androidSdk
-            pkgs.gradle
-            pkgs.jdk17
-            pkgs.kotlin
-            pkgs.gnumake
-            pkgs.git
-            pkgs.python3
-            pkgs.scrcpy
-          ]
-          ++ preCommitCheck.enabledPackages;
-          shellHook = preCommitCheck.shellHook + ''
-            export GRADLE_USER_HOME="$PWD/.gradle"
-            mkdir -p "$GRADLE_USER_HOME"
-          '';
-        };
+      mkPkgs = system: import nixpkgs { inherit system; };
     in
     {
       formatter = forAllSystems (
@@ -101,9 +52,11 @@
           preCommitCheck = self.checks.${system}.pre-commit-check;
         in
         {
-          default = mkDevShell {
-            inherit pkgs preCommitCheck;
+          # JDK, Android SDK, emulator, and scrcpy come from the host sandbox.
+          default = pkgs.mkShell {
             name = "couch-tasks-android-dev";
+            packages = preCommitCheck.enabledPackages;
+            shellHook = preCommitCheck.shellHook;
           };
         }
       );

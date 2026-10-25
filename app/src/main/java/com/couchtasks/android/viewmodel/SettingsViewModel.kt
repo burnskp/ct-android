@@ -15,10 +15,12 @@ import com.couchtasks.android.sync.displayMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.FileNotFoundException
@@ -34,6 +36,7 @@ class SettingsViewModel(
     val settings = settingsRepository.state
     val reviewIntervalDays = settingsRepository.reviewIntervalDays
     val switchJournal = settingsRepository.database.connectionDao().observeJournal()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
     val switchBusy = MutableStateFlow(false)
     val switchError = MutableStateFlow("")
     val destinationUrl = MutableStateFlow("")

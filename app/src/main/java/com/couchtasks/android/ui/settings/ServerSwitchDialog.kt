@@ -20,7 +20,7 @@ import com.couchtasks.android.viewmodel.SettingsViewModel
 
 @Composable
 fun ServerSwitchDialog(viewModel: SettingsViewModel, initialUrl: String, onDismiss: () -> Unit) {
-    val journal by viewModel.switchJournal.collectAsStateWithLifecycle(null)
+    val journal by viewModel.switchJournal.collectAsStateWithLifecycle()
     val busy by viewModel.switchBusy.collectAsStateWithLifecycle()
     val error by viewModel.switchError.collectAsStateWithLifecycle()
     val destination by viewModel.destinationUrl.collectAsStateWithLifecycle()

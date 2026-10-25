@@ -38,7 +38,7 @@ import com.couchtasks.android.viewmodel.SettingsViewModel
 fun SettingsScreen(settingsViewModel: SettingsViewModel) {
     val settings = settingsViewModel.settings.collectAsStateWithLifecycle(initialValue = null).value ?: return
     val tlsErrorDialogMessage by settingsViewModel.tlsErrorDialogMessage.collectAsStateWithLifecycle(null)
-    val switchJournal by settingsViewModel.switchJournal.collectAsStateWithLifecycle(null)
+    val switchJournal by settingsViewModel.switchJournal.collectAsStateWithLifecycle()
     var serverUrl by rememberSaveable(settings.serverUrl) { mutableStateOf(settings.serverUrl) }
     var serverUrlError by rememberSaveable { mutableStateOf("") }
     var switchDialogProfile by rememberSaveable { mutableStateOf<String?>(null) }

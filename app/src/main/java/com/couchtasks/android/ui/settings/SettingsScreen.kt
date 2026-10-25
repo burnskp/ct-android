@@ -42,6 +42,8 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel) {
     var serverUrl by rememberSaveable(settings.serverUrl) { mutableStateOf(settings.serverUrl) }
     var serverUrlError by rememberSaveable { mutableStateOf("") }
     var switchDialogProfile by rememberSaveable { mutableStateOf<String?>(null) }
+    val reviewIntervalDays by settingsViewModel.reviewIntervalDays.collectAsStateWithLifecycle(null)
+    var reviewIntervalText by rememberSaveable(reviewIntervalDays) { mutableStateOf(reviewIntervalDays?.toString().orEmpty()) }
 
     LaunchedEffect(settings.profileId) {
         if (switchDialogProfile != null && switchDialogProfile != settings.profileId) {
@@ -161,6 +163,16 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel) {
             item { SettingsCard("Checkpoint", settings.checkpoint.ifBlank { "Not synced yet" }) }
             item { SettingsCard("Last health", settings.lastHealthResult, successValue = "Healthy") }
             item { SettingsCard("Last sync", settings.lastSyncResult, successValue = "Sync successful") }
+            reviewIntervalDays?.let { savedDays ->
+                item {
+                    ReviewIntervalCard(
+                        value = reviewIntervalText,
+                        savedDays = savedDays,
+                        onValueChange = { reviewIntervalText = it },
+                        onSave = { settingsViewModel.saveReviewIntervalDays(reviewIntervalText) },
+                    )
+                }
+            }
             item {
                 Button(
                     onClick = { settingsViewModel.healthCheck() },

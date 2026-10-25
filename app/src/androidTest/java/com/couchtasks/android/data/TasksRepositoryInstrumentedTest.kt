@@ -90,6 +90,46 @@ class TasksRepositoryInstrumentedTest {
     }
 
     @Test
+    fun reviewQueue_includesInboxWithPendingAndProjectsWithStalePendingTasks() = runBlocking {
+        val cutoff = "2026-01-08T00:00:00Z"
+        val inbox = repository.ensureInbox()
+        val stale = repository.createProject("Stale")
+        val fresh = repository.createProject("Fresh")
+        val doneOnly = repository.createProject("Done only")
+        repository.createTask(inbox.uuid, "Sort me")
+        repository.createTask(fresh.uuid, "Recent")
+        repository.createTask(stale.uuid, "Old").let { db.taskDao().update(it.copy(reviewedAt = "2026-01-01T00:00:00Z")) }
+        repository.createTask(doneOnly.uuid, "Old done", status = TaskStatus.Done)
+            .let { db.taskDao().update(it.copy(reviewedAt = "2026-01-01T00:00:00Z")) }
+
+        val queue = repository.observeReviewQueue(cutoff).first()
+
+        assertEquals(listOf(inbox.uuid, stale.uuid), queue.map { it.uuid })
+        assertEquals(listOf(true, false), queue.map { it.isInbox })
+    }
+
+    @Test
+    fun markProjectReviewed_clearsProjectFromQueueWithoutTouchingUpdatedAt() = runBlocking {
+        val cutoff = "2026-01-08T00:00:00Z"
+        val project = repository.createProject("Home")
+        val task = repository.createTask(project.uuid, "Read")
+        db.taskDao().update(
+            task.copy(updatedAt = "2026-01-01T00:00:00Z", reviewedAt = "2026-01-01T00:00:00Z", syncDirty = false),
+        )
+        val done = repository.createTask(project.uuid, "Done", status = TaskStatus.Done)
+        db.taskDao().update(done.copy(reviewedAt = "2026-01-01T00:00:00Z", syncDirty = false))
+
+        repository.markProjectReviewed(project.uuid)
+
+        val reviewed = requireNotNull(db.taskDao().get(task.uuid))
+        assertTrue(reviewed.syncDirty)
+        assertEquals("2026-01-01T00:00:00Z", reviewed.updatedAt)
+        assertTrue(reviewed.reviewedAt > cutoff)
+        assertFalse(requireNotNull(db.taskDao().get(done.uuid)).syncDirty)
+        assertTrue(repository.observeReviewQueue(cutoff).first().isEmpty())
+    }
+
+    @Test
     fun ensureInbox_createsDirtyRevisionZeroInboxOnlyOnce() = runBlocking {
         val first = repository.ensureInbox()
         val second = repository.ensureInbox()

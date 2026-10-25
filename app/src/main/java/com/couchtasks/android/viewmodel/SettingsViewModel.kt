@@ -32,6 +32,7 @@ class SettingsViewModel(
     val switchCoordinator: com.couchtasks.android.sync.ServerSwitchCoordinator? = null,
 ) : ViewModel() {
     val settings = settingsRepository.state
+    val reviewIntervalDays = settingsRepository.reviewIntervalDays
     val switchJournal = settingsRepository.database.connectionDao().observeJournal()
     val switchBusy = MutableStateFlow(false)
     val switchError = MutableStateFlow("")
@@ -81,6 +82,18 @@ class SettingsViewModel(
                     }
                 }
                 .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it; onInvalid(it.userVisibleMessage()) }
+        }
+    }
+
+    fun saveReviewIntervalDays(text: String) {
+        val days = text.trim().toIntOrNull()
+        viewModelScope.launch {
+            if (days == null || days < 1) {
+                _messages.emit("Review interval must be a whole number of days, at least 1")
+                return@launch
+            }
+            settingsRepository.setReviewIntervalDays(days)
+            _messages.emit("Review interval saved")
         }
     }
 

@@ -99,3 +99,9 @@ data class ProjectWithCounts(
     val pendingCount: Int,
     val doneCount: Int,
 )
+
+data class ReviewProject(
+    val uuid: String,
+    val name: String,
+    val isInbox: Boolean,
+)

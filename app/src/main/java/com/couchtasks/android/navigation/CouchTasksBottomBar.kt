@@ -6,11 +6,13 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 
 @Composable
-fun CouchTasksBottomBar(navController: NavController) {
+fun CouchTasksBottomBar(navController: NavController, reviewEnabled: Boolean) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val route = backStackEntry?.destination?.route
     NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
@@ -30,6 +32,14 @@ fun CouchTasksBottomBar(navController: NavController) {
             },
             icon = { Text("☰") },
             label = { Text("Projects") },
+        )
+        NavigationBarItem(
+            selected = route == Routes.Review,
+            onClick = { navController.navigateTopLevel(Routes.Review) },
+            enabled = reviewEnabled,
+            icon = { Text("☑") },
+            label = { Text("Review") },
+            modifier = Modifier.testTag("ReviewTab"),
         )
         NavigationBarItem(
             selected = route == Routes.Settings,

@@ -5,6 +5,7 @@ object Routes {
     const val Projects = "projects"
     const val Tasks = "tasks"
     const val Settings = "settings"
+    const val Review = "review"
     const val SyncIssue = "sync-issue"
     const val ProjectTasks = "project/{projectUuid}"
     const val TaskEditor = "task/{projectUuid}/{taskUuid}"

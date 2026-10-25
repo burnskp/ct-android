@@ -26,6 +26,21 @@ interface ProjectDao {
     )
     fun observeProjectsWithCounts(): Flow<List<ProjectWithCounts>>
 
+    /** Projects with a pending task reviewed at or before [cutoff]; Inbox counts whenever it has a pending task. */
+    @Query(
+        """
+        SELECT p.uuid, p.name, (p.name_normalized = 'inbox') AS isInbox
+        FROM projects p
+        WHERE EXISTS (
+            SELECT 1 FROM tasks t
+            WHERE t.project_uuid = p.uuid AND t.status = 'pending'
+                AND (p.name_normalized = 'inbox' OR t.reviewed_at <= :cutoff)
+        )
+        ORDER BY CASE WHEN p.name_normalized = 'inbox' THEN 0 ELSE 1 END, p.name COLLATE NOCASE
+        """,
+    )
+    fun observeReviewQueue(cutoff: String): Flow<List<ReviewProject>>
+
     @Query("SELECT * FROM projects WHERE uuid = :uuid")
     suspend fun get(uuid: String): ProjectEntity?
 
@@ -111,6 +126,9 @@ interface TaskDao {
 
     @Query("UPDATE tasks SET project_uuid = :newProjectUuid, sync_dirty = 1 WHERE project_uuid = :oldProjectUuid")
     suspend fun moveToProject(oldProjectUuid: String, newProjectUuid: String)
+
+    @Query("UPDATE tasks SET reviewed_at = :reviewedAt, sync_dirty = 1 WHERE project_uuid = :projectUuid AND status = 'pending'")
+    suspend fun markPendingReviewed(projectUuid: String, reviewedAt: String)
 
     @Query("DELETE FROM tasks WHERE project_uuid = :projectUuid")
     suspend fun deleteForProject(projectUuid: String)

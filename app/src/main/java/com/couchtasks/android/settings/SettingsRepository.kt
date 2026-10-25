@@ -163,6 +163,16 @@ class SettingsRepository(context: Context, val database: CouchTasksDatabase = Co
         }
     }
 
+    /** Device-wide rather than per server profile, so switching servers keeps it. */
+    val reviewIntervalDays: Flow<Int> = dataStore.data.map { preferences ->
+        preferences[Keys.ReviewIntervalDays]?.toIntOrNull()?.takeIf { it >= 1 } ?: DEFAULT_REVIEW_INTERVAL_DAYS
+    }
+
+    suspend fun setReviewIntervalDays(days: Int) {
+        require(days >= 1) { "Review interval must be at least 1 day" }
+        dataStore.edit { it[Keys.ReviewIntervalDays] = days.toString() }
+    }
+
     suspend fun setHealthResult(lastHealthResult: String) {
         dataStore.edit { it[Keys.LastHealthResult] = lastHealthResult }
     }
@@ -206,5 +216,10 @@ class SettingsRepository(context: Context, val database: CouchTasksDatabase = Co
         val LastSyncTimestamp = stringPreferencesKey("last_sync_timestamp")
         val LastSyncResult = stringPreferencesKey("last_sync_result")
         val LastHealthResult = stringPreferencesKey("last_health_result")
+        val ReviewIntervalDays = stringPreferencesKey("review_interval_days")
+    }
+
+    companion object {
+        const val DEFAULT_REVIEW_INTERVAL_DAYS = 7
     }
 }

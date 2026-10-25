@@ -31,6 +31,7 @@ import com.couchtasks.android.settings.CertificatePasswordStore
 import com.couchtasks.android.settings.SettingsRepository
 import com.couchtasks.android.sync.ConfiguredSyncRunner
 import com.couchtasks.android.ui.projects.ProjectsScreen
+import com.couchtasks.android.ui.review.ReviewScreen
 import com.couchtasks.android.ui.settings.SettingsScreen
 import com.couchtasks.android.ui.sync.SyncIssueScreen
 import com.couchtasks.android.ui.tasks.AllTasksScreen
@@ -38,6 +39,7 @@ import com.couchtasks.android.ui.tasks.InboxTasksScreen
 import com.couchtasks.android.ui.tasks.ProjectTasksScreen
 import com.couchtasks.android.ui.tasks.TaskEditorScreen
 import com.couchtasks.android.viewmodel.ProjectsViewModel
+import com.couchtasks.android.viewmodel.ReviewViewModel
 import com.couchtasks.android.viewmodel.SettingsViewModel
 import com.couchtasks.android.viewmodel.TasksViewModel
 import com.couchtasks.android.viewmodel.SyncIssueViewModel
@@ -68,6 +70,13 @@ fun CouchTasksNavHost(
             initializer { SettingsViewModel(settingsRepository, certificatePasswordStore, configuredSyncRunner, switchCoordinator) }
         },
     )
+    val reviewViewModel: ReviewViewModel = viewModel(
+        key = "review",
+        factory = viewModelFactory {
+            initializer { ReviewViewModel(repository, settingsRepository.reviewIntervalDays, onLocalChange) }
+        },
+    )
+    val reviewQueue by reviewViewModel.queue.collectAsStateWithLifecycle()
     val syncIssueViewModel: SyncIssueViewModel = viewModel(
         key = "sync-issue",
         factory = viewModelFactory {
@@ -100,6 +109,9 @@ fun CouchTasksNavHost(
     LaunchedEffect(settingsViewModel) {
         settingsViewModel.messages.collect { snackbarHostState.showSnackbar(it) }
     }
+    LaunchedEffect(reviewViewModel) {
+        reviewViewModel.messages.collect { snackbarHostState.showSnackbar(it) }
+    }
     LaunchedEffect(syncIssueViewModel) {
         syncIssueViewModel.messages.collect { snackbarHostState.showSnackbar(it) }
     }
@@ -118,7 +130,7 @@ fun CouchTasksNavHost(
                 }
             }
         },
-        bottomBar = { CouchTasksBottomBar(navController) },
+        bottomBar = { CouchTasksBottomBar(navController, reviewEnabled = reviewQueue.isNotEmpty()) },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         NavHost(
@@ -134,6 +146,9 @@ fun CouchTasksNavHost(
             }
             composable(Routes.Tasks) {
                 InboxTasksScreen(repository, tasksViewModel, navController)
+            }
+            composable(Routes.Review) {
+                ReviewScreen(repository, reviewViewModel, tasksViewModel, navController)
             }
             composable(Routes.Settings) {
                 SettingsScreen(settingsViewModel)

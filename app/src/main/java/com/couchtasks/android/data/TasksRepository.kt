@@ -22,6 +22,8 @@ class TasksRepository(
 
     fun observeAllTasks(): Flow<List<TaskEntity>> = tasks.observeAllTasks()
 
+    fun observeReviewQueue(cutoff: String): Flow<List<ReviewProject>> = projects.observeReviewQueue(cutoff)
+
     fun observeSyncIssue(): Flow<SyncIssueEntity?> = db.syncIssueDao().observe()
 
     suspend fun getProject(uuid: String): ProjectEntity? = projects.get(uuid)
@@ -275,6 +277,15 @@ class TasksRepository(
         db.withTransaction {
             val task = requireNotNull(tasks.get(taskUuid)) { "Task not found" }
             task.copy(reviewedAt = utcNowRfc3339(), syncDirty = true).also { tasks.update(it) }
+        }
+    }
+
+    /** Reviews every pending task in a project at once; like [markReviewed], it leaves `updated_at` alone. */
+    suspend fun markProjectReviewed(projectUuid: String) = WriteSyncMutex.mutex.withLock {
+        db.requireNotSwitching()
+        db.withTransaction {
+            requireNotNull(projects.get(projectUuid)) { "Project not found" }
+            tasks.markPendingReviewed(projectUuid, utcNowRfc3339())
         }
     }
 

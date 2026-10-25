@@ -5,9 +5,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -511,6 +514,62 @@ class CouchTasksAppComposeTest {
         compose.onNodeWithTag("ServerUrlField").performTextInput(" https://example.com/// ")
         compose.onNodeWithText("Save server URL").performClick()
         compose.waitUntilNodeWithText("Saved: https://example.com")
+    }
+
+    @Test
+    fun reviewTab_isDisabledWithNothingToReview() {
+        runBlocking { repository.ensureInbox() }
+
+        setAppContent()
+
+        compose.onNodeWithTag("ReviewTab").assertIsNotEnabled()
+    }
+
+    @Test
+    fun reviewInbox_listsTasksWithoutReviewCheckOrSkip() {
+        runBlocking {
+            val inbox = repository.ensureInbox()
+            repository.createTask(inbox.uuid, "Sort me")
+        }
+        setAppContent()
+
+        compose.waitUntil(timeoutMillis = 5_000) {
+            runCatching { compose.onNodeWithTag("ReviewTab").assertIsEnabled() }.isSuccess
+        }
+        compose.onNodeWithTag("ReviewTab").performClick()
+
+        compose.waitUntilNodeWithText("Sort me")
+        compose.onAllNodesWithText("Inbox").assertCountEquals(1)
+        compose.onAllNodesWithContentDescription("Skip Inbox").assertCountEquals(0)
+        compose.onAllNodesWithContentDescription("Mark Inbox reviewed").assertCountEquals(0)
+    }
+
+    @Test
+    fun reviewSkipAndCheck_walkThroughQueuedProjects() {
+        runBlocking {
+            listOf("Alpha", "Beta").forEach { name ->
+                val project = repository.createProject(name)
+                val task = repository.createTask(project.uuid, "$name task")
+                db.taskDao().update(task.copy(reviewedAt = "2026-01-01T00:00:00Z"))
+            }
+        }
+        setAppContent()
+
+        compose.waitUntil(timeoutMillis = 5_000) {
+            runCatching { compose.onNodeWithTag("ReviewTab").assertIsEnabled() }.isSuccess
+        }
+        compose.onNodeWithTag("ReviewTab").performClick()
+        compose.waitUntilNodeWithText("Alpha task")
+
+        compose.onNodeWithContentDescription("Skip Alpha").performClick()
+        compose.waitUntilNodeWithText("Beta task")
+
+        compose.onNodeWithContentDescription("Mark Beta reviewed").performClick()
+        compose.waitUntilNodeWithText("Alpha task")
+        compose.onAllNodesWithContentDescription("Skip Alpha").assertCountEquals(0)
+
+        compose.onNodeWithContentDescription("Mark Alpha reviewed").performClick()
+        compose.waitUntilNodeWithText("Nothing to review")
     }
 
     private fun openInboxProject() {

@@ -3,6 +3,7 @@ package com.couchtasks.android.share
 import android.content.Context
 import android.content.Intent
 import androidx.compose.ui.test.*
+import androidx.lifecycle.Lifecycle
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
@@ -24,18 +25,23 @@ class ShareConfirmationInstrumentedTest {
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
 
-    @Test fun cancelAndRecreationDoNotImportUnconfirmedContent() {
+    @Test fun backWithoutSavingDoesNotImportAndFinishes() {
         val before = count()
         ActivityScenario.launch<ShareReceiverActivity>(intent()).use { scenario ->
-            compose.onNodeWithText("Add", useUnmergedTree = true).assertIsDisplayed()
-            assertEquals(before, count())
-            compose.onAllNodes(hasSetTextAction())[0].performTextReplacement("Edited draft")
-            scenario.recreate()
-            compose.onNodeWithText("Edited draft").assertIsDisplayed()
-            assertEquals(before, count())
-            compose.onNodeWithText("Cancel").performClick()
+            compose.onNodeWithText("New Task").assertIsDisplayed()
+            compose.onNodeWithText("‹").performClick()
+            compose.waitUntil(5_000) { scenario.state == Lifecycle.State.DESTROYED }
         }
         assertEquals(before, count())
+    }
+
+    @Test fun savingImportsAndFinishes() {
+        val before = count()
+        ActivityScenario.launch<ShareReceiverActivity>(intent()).use { scenario ->
+            compose.onNodeWithText("✓").performClick()
+            compose.waitUntil(5_000) { scenario.state == Lifecycle.State.DESTROYED }
+        }
+        assertEquals(before + 1, count())
     }
 
     @Test fun unsupportedMimeDoesNotImport() {

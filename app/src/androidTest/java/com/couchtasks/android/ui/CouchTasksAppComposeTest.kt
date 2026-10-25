@@ -28,7 +28,6 @@ import com.couchtasks.android.settings.CertificatePasswordStore
 import com.couchtasks.android.settings.SettingsRepository
 import com.couchtasks.android.sync.ConfiguredSyncRunner
 import com.couchtasks.android.sync.SyncIssueKind
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertNotNull
@@ -396,35 +395,6 @@ class CouchTasksAppComposeTest {
         compose.waitUntil(timeoutMillis = 5_000) {
             runBlocking { db.taskDao().get(taskUuid)?.status == TaskStatus.Pending }
         }
-    }
-
-    @Test
-    fun openTaskRequest_navigatesToExistingTaskEditorAndClearsRequest() {
-        lateinit var taskUuid: String
-        val openTaskRequest = MutableStateFlow<String?>(null)
-        runBlocking {
-            val inbox = repository.ensureInbox()
-            taskUuid = repository.createTask(inbox.uuid, "Shared task", "https://example.com").uuid
-        }
-
-        compose.setContent {
-            CouchTasksTheme {
-                CouchTasksApp(
-                    repository = repository,
-                    settingsRepository = settingsRepository,
-                    certificatePasswordStore = certificatePasswordStore,
-                    configuredSyncRunner = configuredSyncRunner,
-                    openTaskRequest = openTaskRequest,
-                    onOpenTaskRequestHandled = { openTaskRequest.value = null },
-                )
-            }
-        }
-        openTaskRequest.value = taskUuid
-
-        compose.waitUntilNodeWithText("Edit Task")
-        compose.onNodeWithText("Edit Task").assertIsDisplayed()
-        compose.onNodeWithText("Shared task").assertIsDisplayed()
-        compose.waitUntil(timeoutMillis = 5_000) { openTaskRequest.value == null }
     }
 
     @Test

@@ -39,7 +39,6 @@ import com.couchtasks.android.viewmodel.ProjectsViewModel
 import com.couchtasks.android.viewmodel.SettingsViewModel
 import com.couchtasks.android.viewmodel.TasksViewModel
 import com.couchtasks.android.viewmodel.SyncIssueViewModel
-import kotlinx.coroutines.flow.StateFlow
 
 @Composable
 fun CouchTasksNavHost(
@@ -49,8 +48,6 @@ fun CouchTasksNavHost(
     configuredSyncRunner: ConfiguredSyncRunner,
     switchCoordinator: com.couchtasks.android.sync.ServerSwitchCoordinator? = null,
     onLocalChange: () -> Unit = {},
-    openTaskRequest: StateFlow<String?>?,
-    onOpenTaskRequestHandled: () -> Unit,
 ) {
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -81,17 +78,6 @@ fun CouchTasksNavHost(
     val syncIssue by syncIssueViewModel.issue.collectAsStateWithLifecycle(initialValue = null)
 
     LaunchedEffect(repository) { runCatching { repository.ensureInbox() } }
-    LaunchedEffect(openTaskRequest, repository, navController) {
-        openTaskRequest?.collect { taskUuid ->
-            if (taskUuid.isNullOrBlank()) return@collect
-            repository.getTask(taskUuid)?.let { task ->
-                navController.navigate(Routes.taskEditor(task.projectUuid, task.uuid)) {
-                    launchSingleTop = true
-                }
-            }
-            onOpenTaskRequestHandled()
-        }
-    }
     LaunchedEffect(tasksViewModel) {
         tasksViewModel.messages.collect { snackbarHostState.showSnackbar(it) }
     }

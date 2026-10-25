@@ -51,12 +51,14 @@ fun TaskEditorScreen(
     initialProjectUuid: String,
     taskUuid: String,
     onBack: () -> Unit,
+    initialTitle: String = "",
+    initialNotes: String = "",
 ) {
     val projects by repository.observeProjectsWithCounts().collectAsStateWithLifecycle(emptyList())
     val isNew = taskUuid == Routes.NewTaskUuid
     var selectedProjectUuid by remember(initialProjectUuid) { mutableStateOf(initialProjectUuid) }
-    var title by remember(taskUuid) { mutableStateOf("") }
-    var notes by remember(taskUuid) { mutableStateOf("") }
+    var title by remember(taskUuid) { mutableStateOf(initialTitle) }
+    var notes by remember(taskUuid) { mutableStateOf(initialNotes) }
     var status by remember(taskUuid) { mutableStateOf(TaskStatus.Pending) }
     var loadedTask by remember(taskUuid) { mutableStateOf<TaskEntity?>(null) }
     var finishedLoading by remember(taskUuid) { mutableStateOf(isNew) }

@@ -33,18 +33,4 @@ class ProjectUpdateSafetyInstrumentedTest {
             assertTrue(db.taskDao().allTasks().isEmpty())
         } finally { db.close() }
     }
-
-    @Test fun sharedDraftIsIdempotentAndDoesNotCreateInboxBeforeConfirmation() = runBlocking {
-        val context = ApplicationProvider.getApplicationContext<Context>()
-        val db = Room.inMemoryDatabaseBuilder(context, CouchTasksDatabase::class.java).build()
-        try {
-            val repository = TasksRepository(db)
-            assertTrue(db.projectDao().allProjects().isEmpty())
-            val first = repository.importSharedTask("stable-draft", "First", "Notes")
-            val retry = repository.importSharedTask("stable-draft", "Edited", "Other")
-            assertEquals(first, retry)
-            assertEquals(1, db.taskDao().allTasks().size)
-            assertEquals(1, db.projectDao().allProjects().size)
-        } finally { db.close() }
-    }
 }

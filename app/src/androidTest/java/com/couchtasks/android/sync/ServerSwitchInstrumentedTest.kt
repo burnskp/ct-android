@@ -83,7 +83,7 @@ class ServerSwitchInstrumentedTest {
         assertEquals(ConfiguredSyncResult.SwitchInProgress, ConfiguredSyncRunner(db, settings, passwords).syncNow())
         assertEquals(ConfiguredHealthResult.SwitchInProgress, ConfiguredSyncRunner(db, settings, passwords).healthCheck())
         assertTrue(runCatching { settings.setCertificateUris("content://other", "content://other-ca") }.isFailure)
-        assertTrue(runCatching { TasksRepository(db).importSharedTask("draft", "Read", "notes") }.isFailure)
+        assertTrue(runCatching { TasksRepository(db).createTask("any-project", "Read", "notes") }.isFailure)
         failUpload = true
         assertTrue(runCatching { coordinator().resume(true) }.isFailure)
         val sent = outgoing.single()

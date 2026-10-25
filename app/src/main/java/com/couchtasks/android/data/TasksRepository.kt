@@ -140,24 +140,6 @@ class TasksRepository(
         }
     }
 
-    suspend fun importSharedTask(uuid: String, title: String, notes: String): TaskEntity = WriteSyncMutex.mutex.withLock {
-        db.requireNotSwitching()
-        db.withTransaction {
-            tasks.get(uuid)?.let { return@withTransaction it }
-            val validTitle = requireTaskTitle(title)
-            val now = utcNowRfc3339()
-            val inbox = projects.getByNormalizedName(INBOX_NORMALIZED) ?: ProjectEntity(
-                uuid = UUID.randomUUID().toString(), name = INBOX_NAME, nameNormalized = INBOX_NORMALIZED,
-                createdAt = now, updatedAt = now, syncRevision = 0, syncDirty = true,
-            ).also { projects.insert(it) }
-            TaskEntity(
-                uuid = uuid, projectUuid = inbox.uuid, title = validTitle, notes = notes,
-                status = TaskStatus.Pending, sortOrder = tasks.maxPendingSortOrder(inbox.uuid) + 1,
-                createdAt = now, updatedAt = now, completedAt = null, syncRevision = 0, syncDirty = true,
-            ).also { tasks.insert(it) }
-        }
-    }
-
     suspend fun editTask(
         taskUuid: String,
         title: String,

@@ -5,21 +5,19 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Modifier
-import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.couchtasks.android.CouchTasksApplication
-import com.couchtasks.android.MainActivity
-import kotlinx.coroutines.launch
+import com.couchtasks.android.navigation.Routes
+import com.couchtasks.android.ui.CouchTasksTheme
+import com.couchtasks.android.ui.tasks.TaskEditorScreen
+import com.couchtasks.android.viewmodel.TasksViewModel
 
 class ShareReceiverActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -32,49 +30,46 @@ class ShareReceiverActivity : ComponentActivity() {
             return
         }
         val appContainer = (application as CouchTasksApplication).appContainer
+        val repository = appContainer.tasksRepository
         setContent {
-            com.couchtasks.android.ui.CouchTasksTheme {
-                val switching by appContainer.database.connectionDao().observeJournal().collectAsStateWithLifecycle(null)
-                var title by rememberSaveable { mutableStateOf(parsed.title) }
-                var notes by rememberSaveable { mutableStateOf(parsed.notes) }
-                val taskUuid = rememberSaveable { java.util.UUID.randomUUID().toString() }
-                var submitting by remember { mutableStateOf(false) }
-                var error by remember { mutableStateOf<String?>(null) }
-                AlertDialog(
-                    onDismissRequest = { if (!submitting) finish() },
-                    title = { Text("Add to Couch Tasks") },
-                    text = {
-                        Column(Modifier.verticalScroll(rememberScrollState())) {
-                            OutlinedTextField(title, { title = it.take(200) }, label = { Text("Title") }, enabled = !submitting)
-                            OutlinedTextField(notes, { notes = it.take(8000) }, label = { Text("Notes") }, enabled = !submitting, maxLines = 8)
-                            if (switching != null) Text("Adding is temporarily unavailable during a server switch. Your draft is retained; resume or abandon the switch in Settings.")
-                            error?.let { Text(it) }
-                        }
+            CouchTasksTheme {
+                val tasksViewModel: TasksViewModel = viewModel(
+                    key = "share-tasks",
+                    factory = viewModelFactory {
+                        initializer { TasksViewModel(repository, appContainer.scheduleAutomaticSync) }
                     },
-                    confirmButton = {
-                        TextButton(enabled = !submitting && switching == null && title.isNotBlank(), onClick = {
-                            submitting = true
-                            lifecycleScope.launch {
-                                try {
-                                    val task = appContainer.tasksRepository.importSharedTask(taskUuid, title, notes)
-                                    appContainer.scheduleAutomaticSync()
-                                    startActivity(Intent(this@ShareReceiverActivity, MainActivity::class.java).apply {
-                                        flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                                        putExtra(EXTRA_OPEN_TASK_UUID, task.uuid)
-                                    })
-                                    finish()
-                                } catch (cancelled: kotlinx.coroutines.CancellationException) {
-                                    throw cancelled
-                                } catch (failure: Exception) {
-                                    error = failure.message ?: "Could not add to Couch Tasks"
-                                } finally {
-                                    submitting = false
-                                }
-                            }
-                        }) { Text("Add") }
-                    },
-                    dismissButton = { TextButton(enabled = !submitting, onClick = { finish() }) { Text("Cancel") } },
                 )
+                var inboxUuid by remember { mutableStateOf<String?>(null) }
+                LaunchedEffect(repository) {
+                    try {
+                        inboxUuid = repository.ensureInbox().uuid
+                    } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                        throw cancelled
+                    } catch (failure: Exception) {
+                        Toast.makeText(
+                            this@ShareReceiverActivity,
+                            failure.message ?: "Could not add to Couch Tasks",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                        finish()
+                    }
+                }
+                LaunchedEffect(tasksViewModel) {
+                    tasksViewModel.messages.collect {
+                        Toast.makeText(this@ShareReceiverActivity, it, Toast.LENGTH_LONG).show()
+                    }
+                }
+                inboxUuid?.let { inbox ->
+                    TaskEditorScreen(
+                        repository = repository,
+                        tasksViewModel = tasksViewModel,
+                        initialProjectUuid = inbox,
+                        taskUuid = Routes.NewTaskUuid,
+                        onBack = { finish() },
+                        initialTitle = parsed.title,
+                        initialNotes = parsed.notes,
+                    )
+                }
             }
         }
     }
@@ -98,7 +93,6 @@ class ShareReceiverActivity : ComponentActivity() {
     private fun String.trimSharedField(): String = trim().take(MAX_SHARED_FIELD_CHARS)
 
     companion object {
-        const val EXTRA_OPEN_TASK_UUID = "open_task_uuid"
         private const val MAX_CLIP_VALUES = 8
         private const val MAX_SHARED_FIELD_CHARS = 16_384
     }

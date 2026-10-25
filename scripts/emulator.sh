@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Start or stop the project's headless Android emulator.
 #
-# Usage: scripts/emulator.sh start|stop
+# Usage: scripts/emulator.sh start|boot|stop
+#   start  boot (if needed), install and launch the app, open scrcpy
+#   boot   boot (if needed) only
 #
 # Environment overrides:
 #   AVD_NAME, AVD_PACKAGE, AVD_DEVICE  AVD to create/boot
@@ -65,7 +67,7 @@ preflight() {
 	local sdk_root="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
 	local image_dir="$sdk_root/${AVD_PACKAGE//;//}"
 	[[ -n "$sdk_root" && -d "$image_dir" ]] ||
-		die "System image not found: $image_dir. Run inside the dev sandbox or set ANDROID_HOME to a full SDK."
+		die "System image not found: $image_dir. Run inside the dev sandbox or add the Android SDK tools to PATH."
 	if [[ ! -r /dev/kvm || ! -w /dev/kvm ]]; then
 		echo "Warning: /dev/kvm is not accessible; the emulator will be very slow or fail to start." >&2
 	fi
@@ -119,7 +121,7 @@ start_scrcpy() {
 	echo "$!" >"$scrcpy_pid_file"
 }
 
-start() {
+boot() {
 	preflight
 	adb start-server >/dev/null
 	if device_booted; then
@@ -128,7 +130,10 @@ start() {
 		ensure_avd
 		boot_emulator
 	fi
+}
 
+start() {
+	boot
 	(cd "$repo_root" && ./gradlew :app:assembleDebug)
 	adb -s "$serial" install -r "$debug_apk"
 	adb -s "$serial" shell am start -n "$APP_ID/$MAIN_ACTIVITY"
@@ -183,6 +188,7 @@ stop() {
 
 case "${1:-}" in
 start) start ;;
+boot) boot ;;
 stop) stop ;;
-*) die "Usage: $0 start|stop" ;;
+*) die "Usage: $0 start|boot|stop" ;;
 esac

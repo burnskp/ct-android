@@ -21,7 +21,7 @@ help:
 	@echo "  make sideload       Build a minified APK signed with the local debug key"
 	@echo "  make test           Run debug unit tests"
 	@echo "  make check          Run unit tests, lint, and debug build"
-	@echo "  make connected-check Run instrumented tests on a connected device/emulator"
+	@echo "  make connected-check Run instrumented tests (boots and stops the emulator if no device is connected)"
 	@echo "  make verify         Run check and connected-check"
 	@echo "  make clean          Clean Gradle outputs"
 	@echo "  make clean-emulator-cache Clear app data/cache on the first running emulator"
@@ -105,7 +105,14 @@ check:
 	$(GRADLE) testDebugUnitTest lintDebug assembleDebug
 
 connected-check:
-	$(GRADLE) connectedDebugAndroidTest
+	if $(ADB) devices 2>/dev/null | awk '$$2 == "device" { found = 1 } END { exit !found }'; then
+		$(GRADLE) connectedDebugAndroidTest
+	else
+		echo "No connected device; booting the emulator for this run..."
+		trap 'bash scripts/emulator.sh stop' EXIT
+		bash scripts/emulator.sh boot
+		ANDROID_SERIAL="emulator-$${EMULATOR_PORT:-5554}" $(GRADLE) connectedDebugAndroidTest
+	fi
 
 verify: check connected-check
 

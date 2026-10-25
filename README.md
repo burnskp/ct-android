@@ -29,7 +29,7 @@ The debug APK is `app/build/outputs/apk/debug/app-debug.apk`. Optional Make targ
 
 ```sh
 make check            # unit tests, lint, debug build
-make connected-check  # instrumented tests on a connected emulator/device
+make connected-check  # instrumented tests; boots and stops the emulator if no device is connected
 make verify           # both checks
 make sideload         # minified APK signed with the local debug key
 make release          # minified APK signed with explicit release credentials

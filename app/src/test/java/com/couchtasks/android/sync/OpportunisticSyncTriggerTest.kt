@@ -115,6 +115,7 @@ class OpportunisticSyncTriggerTest {
                 serverUrl = "https://tasks.example.com",
                 clientCertificateUri = "content://certs/client.p12",
                 caCertificateUri = "content://certs/ca.pem",
+                caCertificateSha256Fingerprint = "AB:CD",
             )
         },
         isClientCertificatePasswordAvailable = { true },

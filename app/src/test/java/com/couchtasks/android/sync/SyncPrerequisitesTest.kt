@@ -41,6 +41,21 @@ class SyncPrerequisitesTest {
     }
 
     @Test
+    fun validateSyncPrerequisites_requiresPinnedCaFingerprint() {
+        assertEquals(
+            SyncPrerequisiteResult.MissingCaCertificate,
+            validateSyncPrerequisites(
+                SettingsState(
+                    serverUrl = "https://tasks.example.com",
+                    clientCertificateUri = "content://client.p12",
+                    caCertificateUri = "content://ca.crt",
+                ),
+                true,
+            ),
+        )
+    }
+
+    @Test
     fun validateSyncPrerequisites_requiresClientCertificatePassword() {
         assertEquals(
             SyncPrerequisiteResult.MissingClientCertificatePassword,
@@ -49,6 +64,7 @@ class SyncPrerequisitesTest {
                     serverUrl = "https://tasks.example.com",
                     clientCertificateUri = "content://client.p12",
                     caCertificateUri = "content://ca.crt",
+                    caCertificateSha256Fingerprint = "AB:CD",
                 ),
                 clientCertificatePasswordAvailable = false,
             ),
@@ -62,12 +78,14 @@ class SyncPrerequisitesTest {
                 serverUrl = "https://tasks.example.com/base",
                 clientCertificateUri = "content://client.p12",
                 caCertificateUri = "content://ca.crt",
+                caCertificateSha256Fingerprint = "AB:CD",
             ),
             validateSyncPrerequisites(
                 SettingsState(
                     serverUrl = " https://tasks.example.com/base/// ",
                     clientCertificateUri = "content://client.p12",
                     caCertificateUri = "content://ca.crt",
+                    caCertificateSha256Fingerprint = "AB:CD",
                 ),
                 clientCertificatePasswordAvailable = true,
             ),

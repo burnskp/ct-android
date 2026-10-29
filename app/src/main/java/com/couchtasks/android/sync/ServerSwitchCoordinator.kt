@@ -19,6 +19,7 @@ class ServerSwitchCoordinator(
     private val cancelWork: () -> Unit,
     private val exchange: (suspend (SettingsState, SyncRequest) -> SyncTransportResult)? = null,
     private val beforeActivation: suspend () -> Unit = {},
+    private val caFingerprint: (String) -> String = { settings.caCertificateSha256Fingerprint(it.toUri()) },
 ) {
     val journal = db.connectionDao().observeJournal()
 
@@ -29,6 +30,7 @@ class ServerSwitchCoordinator(
         val activeUrl = validateAndNormalizeServerUrl(settings.currentState().serverUrl)
         if ((activeUrl as? ServerUrlValidationResult.Valid)?.normalizedUrl == canonical) return
         require(clientUri.isNotBlank() && caUri.isNotBlank()) { "Select destination certificates" }
+        val caSha256Fingerprint = caFingerprint(caUri)
         ConnectionOperations.stopping = true
         cancelWork()
         ConnectionOperations.activeSync?.cancel()
@@ -39,7 +41,7 @@ class ServerSwitchCoordinator(
                     val id = UUID.randomUUID().toString()
                     val config = SettingsState(profileId = id, serverUrl = canonical, clientCertificateUri = clientUri,
                         caCertificateUri = caUri, clientCertificateDisplayName = clientUri.substringAfterLast('/'),
-                        caCertificateDisplayName = caUri.substringAfterLast('/'))
+                        caCertificateDisplayName = caUri.substringAfterLast('/'), caCertificateSha256Fingerprint = caSha256Fingerprint)
                     val chars = password.toCharArray()
                     try { passwords.forProfile(id).savePassword(chars) } finally { chars.fill('\u0000') }
                     db.withTransaction {
@@ -163,11 +165,12 @@ class ServerSwitchCoordinator(
         exchange?.invoke(config, request) ?: transport(config).sync(config.serverUrl, request)
 
     private fun transport(config: SettingsState): SyncTransport {
+        require(config.caCertificateSha256Fingerprint.isNotBlank()) { "Destination CA must be selected again; abandon and restart the switch" }
         val password = passwords.forProfile(config.profileId).loadPassword() ?: error("Destination password unavailable")
         try {
             context.contentResolver.openInputStream(config.clientCertificateUri.toUri()).use { client ->
                 context.contentResolver.openInputStream(config.caCertificateUri.toUri()).use { ca ->
-                    return SyncTransport(MtlsHttpClientFactory.build(requireNotNull(client), password, requireNotNull(ca)))
+                    return SyncTransport(MtlsHttpClientFactory.build(requireNotNull(client), password, requireNotNull(ca), config.caCertificateSha256Fingerprint))
                 }
             }
         } finally { password.fill('\u0000') }

@@ -1,15 +1,17 @@
 # Couch Tasks Android
 
-Android task app with local Room storage, Compose UI, share-target import, and optional mTLS sync. Requires Android 8.0 (API 26) or newer. Tasks work locally without a server or account.
+Android task app with local Room storage, Compose UI, share-target import, and optional mTLS sync. Requires Android 16 (API 36) or newer. Tasks work locally without a server or account.
 
 ## Development
 
-Use JDK 17 and the checked-in Gradle wrapper. The cloister dev sandbox supplies JDK 17, the Android SDK (Platform 36, Build Tools 37.0.0, emulator and API 36 Play Store system image), scrcpy, and a per-project `~/.gradle`. The Nix shell (`nix develop`, or direnv via `.envrc`) only adds the pre-commit formatting hook.
+Use JDK 17 and the checked-in Gradle wrapper. Building and testing require Android SDK Platform 37, Build Tools 37.0.0, and an API 37 Play Store system image. The cloister dev sandbox supplies the Android tools, emulator, scrcpy, and a per-project `~/.gradle`; if its SDK lacks the required packages, install them in a writable SDK and point `ANDROID_HOME` to it. The Nix shell (`nix develop`, or direnv via `.envrc`) only adds the pre-commit formatting hook.
+
+The app compiles against and targets API 37, and the default test emulator runs API 37.
 
 Outside the sandbox:
 
 1. Install JDK 17 and Android Studio or Android SDK command-line tools.
-2. Install Android SDK Platform 36 and Build Tools 37.0.0 using SDK Manager. With command-line tools, run `sdkmanager "platforms;android-36" "build-tools;37.0.0"` and accept licenses with `sdkmanager --licenses`.
+2. Install Android SDK Platform 37 and Build Tools 37.0.0 using SDK Manager. With command-line tools, run `sdkmanager "platforms;android-37.0" "build-tools;37.0.0"` and accept licenses with `sdkmanager --licenses`.
 3. Set `JAVA_HOME` to JDK 17 and `ANDROID_HOME` to your SDK directory. Alternatively, set `sdk.dir` in your ignored `local.properties`. Remove stale SDK paths when switching installations.
 4. In Android Studio, select JDK 17 under Settings → Build, Execution, Deployment → Build Tools → Gradle → Gradle JDK.
 
@@ -35,10 +37,12 @@ make sideload         # minified APK signed with the local debug key
 make release          # minified APK signed with explicit release credentials
 ```
 
-To try the app in an emulator (requires KVM and the `system-images;android-36;google_apis_playstore;x86_64` image, which the sandbox provides):
+Install the emulator image with `sdkmanager "system-images;android-37.0;google_apis_playstore;x86_64"`.
+
+To try the app in an emulator (requires KVM and the `system-images;android-37.0;google_apis_playstore;x86_64` image):
 
 ```sh
-make start-emulator   # boots a headless API 36 emulator, installs and launches the app, opens scrcpy
+make start-emulator   # boots a headless API 37 emulator, installs and launches the app, opens scrcpy
 make stop-emulator    # shuts down the emulator and scrcpy
 ```
 

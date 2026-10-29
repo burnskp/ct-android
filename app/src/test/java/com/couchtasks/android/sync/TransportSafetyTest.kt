@@ -1,8 +1,8 @@
 package com.couchtasks.android.sync
 
 import kotlinx.coroutines.*
-import okhttp3.mockwebserver.MockResponse
-import okhttp3.mockwebserver.MockWebServer
+import mockwebserver3.MockResponse
+import mockwebserver3.MockWebServer
 import okhttp3.tls.HeldCertificate
 import okhttp3.tls.HandshakeCertificates
 import okio.Buffer
@@ -32,7 +32,7 @@ class TransportSafetyTest {
     )
     private fun server(cert: HeldCertificate = serverCertificate, trustedClient: HeldCertificate = ca) = MockWebServer().apply {
         protocols = listOf(okhttp3.Protocol.HTTP_1_1)
-        useHttps(HandshakeCertificates.Builder().heldCertificate(cert, ca.certificate).addTrustedCertificate(trustedClient.certificate).build().sslSocketFactory(), false)
+        useHttps(HandshakeCertificates.Builder().heldCertificate(cert, ca.certificate).addTrustedCertificate(trustedClient.certificate).build().sslSocketFactory())
         requireClientAuth()
         start()
     }
@@ -51,10 +51,10 @@ class TransportSafetyTest {
         server().use { origin ->
             server().use { target ->
                 for (code in listOf(301, 302, 303, 307, 308)) {
-                    origin.enqueue(MockResponse().setResponseCode(code).setHeader("Location", target.url("/stolen")))
+                    origin.enqueue(MockResponse.Builder().code(code).setHeader("Location", target.url("/stolen")).build())
                     assertTrue(SyncTransport(client).sync(origin.url("/").toString(), SyncRequest()) is SyncTransportResult.HttpProtocolError)
                 }
-                origin.enqueue(MockResponse().setResponseCode(302).setHeader("Location", "http://localhost:${target.port}/stolen"))
+                origin.enqueue(MockResponse.Builder().code(302).setHeader("Location", "http://localhost:${target.port}/stolen").build())
                 assertTrue(SyncTransport(client).sync(origin.url("/").toString(), SyncRequest()) is SyncTransportResult.HttpProtocolError)
                 assertEquals(0, target.requestCount)
             }
@@ -67,17 +67,17 @@ class TransportSafetyTest {
             val json = "{\"checkpoint\":0,\"projects\":[],\"tasks\":[],\"tombstones\":[]}"
             val limit = 16 * 1024 * 1024
             val exact = json + " ".repeat(limit - json.length)
-            server.enqueue(MockResponse().setBody(exact))
+            server.enqueue(MockResponse.Builder().body(exact).build())
             assertTrue(transport.sync(server.url("/").toString(), SyncRequest()) is SyncTransportResult.Success)
             val compressed = Buffer()
             GzipSink(compressed).buffer().use { it.writeUtf8(exact + " ") }
-            server.enqueue(MockResponse().setHeader("Content-Encoding", "gzip").setChunkedBody(compressed, 1024))
+            server.enqueue(MockResponse.Builder().setHeader("Content-Encoding", "gzip").chunkedBody(compressed, 1024).build())
             assertEquals(SyncTransportResult.ResponseTooLarge, transport.sync(server.url("/").toString(), SyncRequest()))
-            server.enqueue(MockResponse().setChunkedBody("ok" + " ".repeat(4094), 128))
+            server.enqueue(MockResponse.Builder().chunkedBody("ok" + " ".repeat(4094), 128).build())
             assertEquals(HealthCheckResult.Success, transport.healthCheck(server.url("/").toString()))
-            server.enqueue(MockResponse().setBody("ok" + " ".repeat(4095)))
+            server.enqueue(MockResponse.Builder().body("ok" + " ".repeat(4095)).build())
             assertEquals(HealthCheckResult.ResponseTooLarge, transport.healthCheck(server.url("/").toString()))
-            server.enqueue(MockResponse().setResponseCode(500).setChunkedBody("x".repeat(32768), 1024))
+            server.enqueue(MockResponse.Builder().code(500).chunkedBody("x".repeat(32768), 1024).build())
             val error = transport.sync(server.url("/").toString(), SyncRequest()) as SyncTransportResult.Http5xxFailure
             assertTrue(error.body.length <= 16 * 1024 + 20)
         }
@@ -85,7 +85,7 @@ class TransportSafetyTest {
 
     @Test fun cancellationDuringBodyReadCancelsCallAndPropagates() = runBlocking {
         server().use { server ->
-            server.enqueue(MockResponse().setBody("{\"checkpoint\":0}").throttleBody(1, 1, TimeUnit.SECONDS))
+            server.enqueue(MockResponse.Builder().body("{\"checkpoint\":0}").throttleBody(1, 1, TimeUnit.SECONDS).build())
             val client = client()
             val job = async(Dispatchers.IO) { SyncTransport(client).healthCheck(server.url("/").toString()) }
             withContext(Dispatchers.IO) { assertNotNull(server.takeRequest(5, TimeUnit.SECONDS)) }

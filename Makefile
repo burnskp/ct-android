@@ -84,7 +84,10 @@ sideload:
 			-validity 10000 \
 			-dname "CN=Android Debug,O=Android,C=US" >/dev/null
 	fi
-	aligned_apk="$${TMPDIR:-/tmp}/couch-tasks-release-aligned.apk"
+	# mktemp -d creates a 0700 directory, so no other account can pre-create the aligned APK path.
+	sideload_tmp="$$(mktemp -d)"
+	trap 'rm -rf "$$sideload_tmp"' EXIT
+	aligned_apk="$$sideload_tmp/aligned.apk"
 	"$$zipalign" -f -p 4 "$(RELEASE_UNSIGNED_APK)" "$$aligned_apk"
 	"$$apksigner" sign \
 		--ks "$(DEBUG_KEYSTORE)" \
@@ -94,7 +97,6 @@ sideload:
 		--out "$(RELEASE_APK)" \
 		"$$aligned_apk"
 	"$$apksigner" verify "$(RELEASE_APK)"
-	rm -f "$$aligned_apk"
 	echo "Release APK ready: $(RELEASE_APK)"
 
 test:

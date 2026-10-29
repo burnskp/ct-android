@@ -1,15 +1,13 @@
 package com.couchtasks.android.sync
 
 import com.couchtasks.android.data.*
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
 import java.time.Instant
 import java.util.Locale
 import java.util.UUID
 
 data class MigrationPreview(val request: SyncRequest, val projectsAdded: Int, val tasksCopied: Int, val tasksSkipped: Int)
 
-suspend fun planMigration(
+fun planMigration(
     sourceProjects: List<ProjectEntity>, sourceTasks: List<TaskEntity>,
     destinationProjects: List<ProjectEntity>, destinationTasks: List<TaskEntity>, checkpoint: Long,
     newId: () -> String = { UUID.randomUUID().toString() },
@@ -18,11 +16,11 @@ suspend fun planMigration(
     val tasks = mutableListOf<SyncTask>()
     var skipped = 0
     // Index once so planning stays linear in the snapshot size.
-    val destinationsByName = destinationProjects.groupBy { it.nameNormalized }.mapValues { it.value.first() }
+    val destinationsByName = destinationProjects.distinctBy { it.nameNormalized }.associateBy { it.nameNormalized }
     val destinationTasksByProject = destinationTasks.groupBy { it.projectUuid }
     val sourceTasksByProject = sourceTasks.groupBy { it.projectUuid }
+    val createdAt = sourceTasks.associate { it.uuid to Instant.parse(it.createdAt) }
     sourceProjects.sortedBy { it.uuid }.forEach { local ->
-        currentCoroutineContext().ensureActive()
         val destination = destinationsByName[normalizeProjectName(local.name)]
         val projectId = destination?.uuid ?: newId().also { id ->
             projects += SyncProject(id, local.name, normalizeProjectName(local.name), local.createdAt, local.updatedAt, local.archivedAt)
@@ -30,10 +28,10 @@ suspend fun planMigration(
         val existing = destinationTasksByProject[projectId].orEmpty()
         val titles = existing.map { it.title.trim().lowercase(Locale.ROOT) }.toMutableSet()
         val candidates = sourceTasksByProject[local.uuid].orEmpty()
-            .sortedWith(compareBy<TaskEntity> { Instant.parse(it.createdAt) }.thenBy { it.uuid })
+            .sortedWith(compareBy<TaskEntity> { createdAt.getValue(it.uuid) }.thenBy { it.uuid })
         val selected = candidates.filter { task ->
             titles.add(task.title.trim().lowercase(Locale.ROOT)).also { if (!it) skipped++ }
-        }.sortedWith(compareBy<TaskEntity> { it.sortOrder }.thenBy { Instant.parse(it.createdAt) }.thenBy { it.uuid })
+        }.sortedWith(compareBy<TaskEntity> { it.sortOrder }.thenBy { createdAt.getValue(it.uuid) }.thenBy { it.uuid })
         var order = existing.filter { it.status == TaskStatus.Pending }.maxOfOrNull { it.sortOrder.toLong() } ?: 0L
         selected.forEach { task ->
             val next = if (task.status == TaskStatus.Pending) ++order else 0L

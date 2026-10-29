@@ -56,6 +56,8 @@ class ServerSwitchCoordinator(
 
     /** Preview requires a separate explicit confirm. Upload retries use the persisted request verbatim. */
     suspend fun resume(confirmUpload: Boolean = false) = ConnectionOperations.mutex.withLock {
+        // Records the destination CA fingerprint for journals written before CA pinning.
+        settings.initializeProfile()
         val entry = db.connectionDao().journal() ?: return@withLock
         val config = SyncJson.decodeFromString(SettingsState.serializer(), requireNotNull(db.connectionDao().profile(entry.profileId)).settings)
         val staging = openStage(entry.profileId)

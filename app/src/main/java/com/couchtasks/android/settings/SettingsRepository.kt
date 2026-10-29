@@ -83,6 +83,19 @@ class SettingsRepository(context: Context, val database: CouchTasksDatabase = Co
                 database.connectionDao().activate(ActiveProfile(profileId = "legacy"))
             }
         }
+        listOfNotNull(database.connectionDao().active(), database.connectionDao().journal()?.let { database.connectionDao().profile(it.profileId) })
+            .forEach { profile ->
+                val config = SyncJson.decodeFromString(SettingsState.serializer(), profile.settings)
+                val pinned = withRecordedCaFingerprint(config)
+                if (pinned != config) database.connectionDao().save(profile.copy(settings = SyncJson.encodeToString(SettingsState.serializer(), pinned)))
+            }
+    }
+
+    // Profiles saved before CA pinning have no fingerprint. Record the CA the URI holds now; before pinning nothing was checked at all.
+    private fun withRecordedCaFingerprint(config: SettingsState): SettingsState {
+        if (config.caCertificateUri.isBlank() || config.caCertificateSha256Fingerprint.isNotBlank()) return config
+        val fingerprint = runCatching { caCertificateSha256Fingerprint(config.caCertificateUri.toUri()) }.getOrNull() ?: return config
+        return config.copy(caCertificateSha256Fingerprint = fingerprint)
     }
 
     private suspend fun updateConfiguration(change: suspend (SettingsState) -> SettingsState) {

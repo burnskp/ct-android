@@ -2,7 +2,13 @@ package com.couchtasks.android.settings
 
 import android.content.Context
 import android.net.Uri
+import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import com.couchtasks.android.data.ActiveProfile
+import com.couchtasks.android.data.ConnectionProfile
+import com.couchtasks.android.data.CouchTasksDatabase
+import com.couchtasks.android.data.SwitchJournal
+import com.couchtasks.android.sync.SyncJson
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -61,11 +67,46 @@ class SettingsRepositoryInstrumentedTest {
         assertFalse(passwordPreferences.any { it.contains(secret) })
     }
 
+    @Test
+    fun initializeProfile_recordsMissingCaFingerprintForActiveAndSwitchProfiles() = runBlocking {
+        val name = "fingerprint-test-${System.nanoTime()}.db"
+        val db = Room.databaseBuilder(context, CouchTasksDatabase::class.java, name).build()
+        try {
+            val caUri = Uri.fromFile(writeCacheFile("ca-${System.nanoTime()}.pem", SAMPLE_CA_CERTIFICATE)).toString()
+            val unpinned = SettingsState(serverUrl = "https://old.example", caCertificateUri = caUri)
+            val missing = unpinned.copy(profileId = "missing", caCertificateUri = Uri.fromFile(File(context.cacheDir, "absent.pem")).toString())
+            db.connectionDao().save(ConnectionProfile("legacy", SyncJson.encodeToString(SettingsState.serializer(), unpinned)))
+            db.connectionDao().activate(ActiveProfile(profileId = "legacy"))
+            db.connectionDao().save(ConnectionProfile("destination", SyncJson.encodeToString(SettingsState.serializer(),
+                unpinned.copy(profileId = "destination", serverUrl = "https://new.example"))))
+            db.connectionDao().saveJournal(SwitchJournal(profileId = "destination", mode = "migrate"))
+
+            SettingsRepository(context, db).initializeProfile()
+
+            assertEquals(SAMPLE_CA_FINGERPRINT, db.storedState("legacy").caCertificateSha256Fingerprint)
+            assertEquals(SAMPLE_CA_FINGERPRINT, db.storedState("destination").caCertificateSha256Fingerprint)
+
+            // An unreadable CA stays unpinned so sync asks for it to be selected again.
+            db.connectionDao().save(ConnectionProfile("missing", SyncJson.encodeToString(SettingsState.serializer(), missing)))
+            db.connectionDao().activate(ActiveProfile(profileId = "missing"))
+            SettingsRepository(context, db).initializeProfile()
+            assertEquals("", db.storedState("missing").caCertificateSha256Fingerprint)
+        } finally {
+            db.close()
+            context.deleteDatabase(name)
+        }
+    }
+
+    private suspend fun CouchTasksDatabase.storedState(id: String) =
+        SyncJson.decodeFromString(SettingsState.serializer(), connectionDao().profile(id)!!.settings)
+
     private fun writeCacheFile(name: String, contents: String): File = File(context.cacheDir, name).also {
         it.writeText(contents)
     }
 
     companion object {
+        private const val SAMPLE_CA_FINGERPRINT =
+            "5C:C3:F5:0F:5D:95:7B:F1:A3:D3:1C:2F:D6:91:05:1D:72:C2:70:F2:FE:45:E2:47:A6:23:90:D9:12:B0:9D:04"
         private val SAMPLE_CA_CERTIFICATE = """
 -----BEGIN CERTIFICATE-----
 MIIFNTCCAx2gAwIBAgIUeKPfAPrZ/0bvlRv2tQkkwis8SzcwDQYJKoZIhvcNAQEL

@@ -11,14 +11,16 @@ import okio.buffer
 import org.junit.Assert.*
 import org.junit.Test
 import java.io.ByteArrayOutputStream
+import com.couchtasks.android.settings.sha256Fingerprint
 import java.security.KeyStore
+import java.security.cert.CertificateException
 import java.util.concurrent.TimeUnit
 
 class TransportSafetyTest {
     private val ca = HeldCertificate.Builder().commonName("Test CA").certificateAuthority(1).build()
     private val serverCertificate = HeldCertificate.Builder().commonName("Test server").signedBy(ca).addSubjectAlternativeName("localhost").build()
     private val clientCertificate = HeldCertificate.Builder().commonName("Test client").signedBy(ca).build()
-    private fun client() = MtlsHttpClientFactory.build(
+    private fun client(pinnedCa: HeldCertificate = ca) = MtlsHttpClientFactory.build(
         ByteArrayOutputStream().also { output ->
             KeyStore.getInstance("PKCS12").apply {
                 load(null, null)
@@ -26,12 +28,18 @@ class TransportSafetyTest {
                 store(output, "password".toCharArray())
             }
         }.toByteArray().inputStream(), "password".toCharArray(), ca.certificatePem().byteInputStream(),
+        pinnedCa.certificate.sha256Fingerprint(),
     )
     private fun server(cert: HeldCertificate = serverCertificate, trustedClient: HeldCertificate = ca) = MockWebServer().apply {
         protocols = listOf(okhttp3.Protocol.HTTP_1_1)
         useHttps(HandshakeCertificates.Builder().heldCertificate(cert, ca.certificate).addTrustedCertificate(trustedClient.certificate).build().sslSocketFactory(), false)
         requireClientAuth()
         start()
+    }
+
+    @Test fun replacedCaCertificateIsRejected() {
+        val other = HeldCertificate.Builder().commonName("Other CA").certificateAuthority(1).build()
+        assertThrows(CertificateException::class.java) { client(pinnedCa = other) }
     }
 
     @Test fun productionClientRejectsRedirectsAndHasDeadlines() = runBlocking {

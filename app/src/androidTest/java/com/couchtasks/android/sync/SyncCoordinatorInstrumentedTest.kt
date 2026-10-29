@@ -240,6 +240,32 @@ class SyncCoordinatorInstrumentedTest {
     }
 
     @Test
+    fun duplicateProjectNamesInResponse_rollBackWithoutMovingTasks() = runBlocking {
+        db.syncStateDao().set(SyncStateEntity(SyncExporter.CHECKPOINT_KEY, "7"))
+        val project = repository.createProject("Home")
+        val task = repository.createTask(project.uuid, "Read", "")
+        val coordinator = coordinatorReturning {
+            response(
+                body = """
+                {
+                  "checkpoint": 8,
+                  "projects": [${projectJson("remote-1", "Home", "home", 1, syncDirty = false)}, ${projectJson("remote-2", " HOME", "home", 2, syncDirty = false)}],
+                  "tasks": [],
+                  "tombstones": []
+                }
+                """.trimIndent(),
+            )
+        }
+
+        val result = coordinator.syncOnce("https://tasks.example.com")
+
+        assertTrue(result is SyncRunResult.RolledBackInvalidResponse)
+        assertEquals("7", db.syncStateDao().get(SyncExporter.CHECKPOINT_KEY))
+        assertNotNull(db.projectDao().get(project.uuid))
+        assertEquals(project.uuid, db.taskDao().get(task.uuid)!!.projectUuid)
+    }
+
+    @Test
     fun missingProjectInResponse_rollsBackRowsAndCheckpoint() = runBlocking {
         db.syncStateDao().set(SyncStateEntity(SyncExporter.CHECKPOINT_KEY, "7"))
         val coordinator = coordinatorReturning {

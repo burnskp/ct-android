@@ -53,7 +53,7 @@ class ServerSwitchInstrumentedTest {
             SyncTransportResult.Success(SyncResponse(11, projects = request.projects.map { it.copy(syncDirty = false, syncRevision = 10) },
                 tasks = request.tasks.map { it.copy(syncDirty = false, syncRevision = 11) }))
         }
-    }, beforeActivation = { if (failActivation) error("activation failed") })
+    }, beforeActivation = { if (failActivation) error("activation failed") }, caFingerprint = { "AB:CD" })
     private suspend fun begin(migrate: Boolean = true) = coordinator().begin("https://new.example", "content://client", "content://ca", "test-password", migrate)
 
     @Test fun unchangedCanonicalUrlIsNoOp() = runBlocking {

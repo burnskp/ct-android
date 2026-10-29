@@ -9,6 +9,7 @@ sealed interface SyncPrerequisiteResult {
         val serverUrl: String,
         val clientCertificateUri: String,
         val caCertificateUri: String,
+        val caCertificateSha256Fingerprint: String,
     ) : SyncPrerequisiteResult
 
     data object MissingServerUrl : SyncPrerequisiteResult
@@ -29,12 +30,16 @@ fun validateSyncPrerequisites(
         return SyncPrerequisiteResult.InvalidServerUrl(urlResult)
     }
     if (settings.clientCertificateUri.isBlank()) return SyncPrerequisiteResult.MissingClientCertificate
-    if (settings.caCertificateUri.isBlank()) return SyncPrerequisiteResult.MissingCaCertificate
+    // A CA without a recorded fingerprint cannot be pinned, so it must be selected again.
+    if (settings.caCertificateUri.isBlank() || settings.caCertificateSha256Fingerprint.isBlank()) {
+        return SyncPrerequisiteResult.MissingCaCertificate
+    }
     if (!clientCertificatePasswordAvailable) return SyncPrerequisiteResult.MissingClientCertificatePassword
     return SyncPrerequisiteResult.Ready(
         serverUrl = urlResult.normalizedUrl,
         clientCertificateUri = settings.clientCertificateUri,
         caCertificateUri = settings.caCertificateUri,
+        caCertificateSha256Fingerprint = settings.caCertificateSha256Fingerprint,
     )
 }
 

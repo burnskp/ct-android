@@ -226,7 +226,7 @@ class ConfiguredSyncRunner(
                 ca = runCatching { settingsRepository.openCaCertificateStream(ready.caCertificateUri) }
                     .getOrNull()
                     ?: return@withContext BuildTransportResult.CaCertificateUnavailable
-                BuildTransportResult.Ready(SyncTransport(MtlsHttpClientFactory.build(clientP12, password, ca)))
+                BuildTransportResult.Ready(SyncTransport(MtlsHttpClientFactory.build(clientP12, password, ca, ready.caCertificateSha256Fingerprint)))
             } catch (error: Exception) {
                 if (error.isLikelyClientCertificatePasswordError()) {
                     BuildTransportResult.PasswordUnavailableOrInvalid

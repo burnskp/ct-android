@@ -52,6 +52,10 @@ class SyncResponseApplier(
         ) {
             throw InvalidSyncResponseException("Response contains duplicate identities")
         }
+        // Each canonical name may replace a local project once; repeats would move the same tasks again.
+        if (response.projects.map { normalizeProjectName(it.name) }.distinct().size != response.projects.size) {
+            throw InvalidSyncResponseException("Response contains duplicate project names")
+        }
     }
 
     private suspend fun applyProject(project: SyncProject) {

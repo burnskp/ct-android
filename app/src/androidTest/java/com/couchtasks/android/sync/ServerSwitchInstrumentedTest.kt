@@ -23,6 +23,7 @@ class ServerSwitchInstrumentedTest {
     private var failUpload = false
     private var failActivation = false
     private var failFetch = false
+    private var caFingerprintResult: () -> String = { "AB:CD" }
 
     @Before fun setup() = runBlocking {
         open()
@@ -53,7 +54,7 @@ class ServerSwitchInstrumentedTest {
             SyncTransportResult.Success(SyncResponse(11, projects = request.projects.map { it.copy(syncDirty = false, syncRevision = 10) },
                 tasks = request.tasks.map { it.copy(syncDirty = false, syncRevision = 11) }))
         }
-    }, beforeActivation = { if (failActivation) error("activation failed") }, caFingerprint = { "AB:CD" })
+    }, beforeActivation = { if (failActivation) error("activation failed") }, caFingerprint = { caFingerprintResult() })
     private suspend fun begin(migrate: Boolean = true) = coordinator().begin("https://new.example", "content://client", "content://ca", "test-password", migrate)
 
     @Test fun unchangedCanonicalUrlIsNoOp() = runBlocking {
@@ -129,6 +130,15 @@ class ServerSwitchInstrumentedTest {
         coordinator().resume()
         assertEquals(1, outgoing.size)
         assertEquals("https://new.example", settings.currentState().serverUrl)
+    }
+
+    @Test fun nonCaDestinationCertificateIsRejectedBeforeAnyWrite() = runBlocking {
+        caFingerprintResult = { throw java.security.cert.CertificateException("Selected certificate is not a CA certificate") }
+        val error = runCatching { begin() }.exceptionOrNull()
+        assertEquals("Destination CA: Selected certificate is not a CA certificate", error?.message)
+        assertNull(db.connectionDao().journal())
+        assertEquals("legacy", db.connectionDao().active()?.id)
+        assertNull(coordinator().destinationUrl())
     }
 
     @Test fun fetchFailureAndAbandonPreserveSource() = runBlocking {

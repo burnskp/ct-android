@@ -45,7 +45,7 @@ private fun KeyStore.firstKeyEntryAlias(): String? {
     return null
 }
 
-private fun X509Certificate.sha256Fingerprint(): String = MessageDigest
+internal fun X509Certificate.sha256Fingerprint(): String = MessageDigest
     .getInstance("SHA-256")
     .digest(encoded)
     .joinToString(":") { byte -> "%02X".format(byte.toInt() and 0xff) }

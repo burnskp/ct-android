@@ -1,6 +1,7 @@
 package com.couchtasks.android.sync
 
 import com.couchtasks.android.data.*
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -10,7 +11,7 @@ class MigrationPlannerTest {
     private fun task(id: String, project: String, title: String, order: Int = 1, status: String = "pending", created: String = time) =
         TaskEntity(id, project, title, "notes-$id", status, order, created, time, if (status == "done") time else null, 44, true, "reviewed-$id")
 
-    @Test fun destinationWinsAndIncomingDuplicatesChooseEarliestThenUuid() {
+    @Test fun destinationWinsAndIncomingDuplicatesChooseEarliestThenUuid() = runBlocking<Unit> {
         val local = project("local", " WORK ")
         val remote = project("remote", "Work")
         var id = 0
@@ -33,7 +34,7 @@ class MigrationPlannerTest {
         assertTrue(result.request.tombstones.isEmpty())
     }
 
-    @Test fun emptyProjectsAndCompletedTasksAreCopiedAcrossDistinctProjects() {
+    @Test fun emptyProjectsAndCompletedTasksAreCopiedAcrossDistinctProjects() = runBlocking<Unit> {
         val source = listOf(project("p", "Home"), project("q", "Work"), project("empty", "Empty"))
         val result = planMigration(source, listOf(task("a", "p", "Same", status = "done"), task("b", "q", "Same")), emptyList(), emptyList(), 4)
         assertEquals(3, result.projectsAdded)

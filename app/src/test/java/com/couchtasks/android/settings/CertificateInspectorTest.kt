@@ -19,7 +19,26 @@ class CertificateInspectorTest {
         CertificateInspector.caCertificateSha256Fingerprint(ByteArrayInputStream("not a certificate".toByteArray()))
     }
 
+    @Test(expected = CertificateException::class)
+    fun caCertificateSha256Fingerprint_rejectsLeafWithoutBasicConstraints() {
+        CertificateInspector.caCertificateSha256Fingerprint(SAMPLE_LEAF_CERTIFICATE.byteInputStream())
+    }
+
     companion object {
+        // Self-signed with no basicConstraints extension, so it is not a CA.
+        private val SAMPLE_LEAF_CERTIFICATE = """
+-----BEGIN CERTIFICATE-----
+MIIBWzCCAQGgAwIBAgIUAczHxpPL6TiU03xS4wdUCxEM3/cwCgYIKoZIzj0EAwIw
+GzEZMBcGA1UEAwwQY291Y2gtdGFza3MtbGVhZjAgFw0yNjEwMjkyMDE3MjZaGA8y
+MTI2MTAwNTIwMTcyNlowGzEZMBcGA1UEAwwQY291Y2gtdGFza3MtbGVhZjBZMBMG
+ByqGSM49AgEGCCqGSM49AwEHA0IABMGIcYBkqi08zl3LHed8RZjSbg9MXQEduTKo
+S68wT+06Jc30/VVOOi+EerRi8MuskzqmmOjxyEeZdOCWFlpsgAGjITAfMB0GA1Ud
+DgQWBBRDjOIU8KA0wU2oUUshIHUZUT4xKTAKBggqhkjOPQQDAgNIADBFAiEA0pKb
+aDpgwe4UhjmBXtK/Gn3cQoPokzkBrPoSD7ag6MYCIEou4Hu9HE3AUZmqdxoMvEYN
+0VNyg4CAyB4NNkg+uasK
+-----END CERTIFICATE-----
+""".trimIndent()
+
         private val SAMPLE_CA_CERTIFICATE = """
 -----BEGIN CERTIFICATE-----
 MIIFNTCCAx2gAwIBAgIUeKPfAPrZ/0bvlRv2tQkkwis8SzcwDQYJKoZIhvcNAQEL

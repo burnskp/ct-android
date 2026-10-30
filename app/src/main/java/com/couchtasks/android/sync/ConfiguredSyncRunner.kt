@@ -197,6 +197,7 @@ class ConfiguredSyncRunner(
             is SyncPrerequisiteResult.InvalidServerUrl -> ConfiguredHealthResult.InvalidUrl(result.validationResult)
             SyncPrerequisiteResult.MissingClientCertificate -> ConfiguredHealthResult.MissingClientCertificate
             SyncPrerequisiteResult.MissingCaCertificate -> ConfiguredHealthResult.MissingCaCertificate
+            SyncPrerequisiteResult.CaCertificateNotPinned -> ConfiguredHealthResult.SelectCaCertificateAgain
             SyncPrerequisiteResult.MissingClientCertificatePassword -> ConfiguredHealthResult.MissingOrWrongPassword
         }
 
@@ -207,6 +208,7 @@ class ConfiguredSyncRunner(
             is SyncPrerequisiteResult.InvalidServerUrl -> ConfiguredSyncResult.InvalidUrl(result.validationResult)
             SyncPrerequisiteResult.MissingClientCertificate -> ConfiguredSyncResult.MissingClientCertificate
             SyncPrerequisiteResult.MissingCaCertificate -> ConfiguredSyncResult.MissingCaCertificate
+            SyncPrerequisiteResult.CaCertificateNotPinned -> ConfiguredSyncResult.SelectCaCertificateAgain
             SyncPrerequisiteResult.MissingClientCertificatePassword -> ConfiguredSyncResult.MissingOrWrongPassword
         }
 

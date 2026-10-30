@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.couchtasks.android.ui.common.rememberLocalNetworkAccess
 import com.couchtasks.android.viewmodel.SettingsViewModel
 
 @Composable
@@ -31,6 +32,12 @@ fun ServerSwitchDialog(viewModel: SettingsViewModel, initialUrl: String, onDismi
     var abandon by remember { mutableStateOf(false) }
     val context = LocalContext.current
     var pickerError by remember { mutableStateOf("") }
+    val withLocalNetworkAccess = rememberLocalNetworkAccess()
+    fun begin(migrate: Boolean) {
+        val (u, c, a, p) = listOf(url, client, ca, password)
+        password = ""
+        withLocalNetworkAccess { viewModel.beginSwitch(u, c, a, p, migrate) }
+    }
     val clientPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) runCatching {
             context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -60,8 +67,8 @@ fun ServerSwitchDialog(viewModel: SettingsViewModel, initialUrl: String, onDismi
                     OutlinedTextField(password, { password = it }, label = { Text("Destination .p12 password") }, visualTransformation = PasswordVisualTransformation(), enabled = !busy)
                     Text("Reset replaces local data with the destination dataset, without uploading local tasks. Migration sends task titles, notes, and status to $url after you confirm the preview. Source server data is never deleted.")
                     val ready = !busy && client.isNotBlank() && ca.isNotBlank() && password.isNotBlank()
-                    Button(enabled = ready, onClick = { viewModel.beginSwitch(url, client, ca, password, false); password = "" }) { Text("Reset local data") }
-                    Button(enabled = ready, onClick = { viewModel.beginSwitch(url, client, ca, password, true); password = "" }) { Text("Preview migration") }
+                    Button(enabled = ready, onClick = { begin(migrate = false) }) { Text("Reset local data") }
+                    Button(enabled = ready, onClick = { begin(migrate = true) }) { Text("Preview migration") }
                 } else {
                     Text("Destination: $destination")
                     Text("Local edits, shared imports, and synchronization are paused. Resume or abandon this switch.")
@@ -69,9 +76,9 @@ fun ServerSwitchDialog(viewModel: SettingsViewModel, initialUrl: String, onDismi
                     if (entry.phase == "preview") {
                         Text("Projects added: ${entry.projectsAdded}; tasks copied: ${entry.tasksCopied}; tasks skipped: ${entry.tasksSkipped}.")
                         Text("Matching uses normalized project names and trimmed, case-insensitive task titles. Destination tasks win. Skipped tasks’ differing notes/status will not be merged. Another client can still create duplicates concurrently.")
-                        Button(enabled = !busy, onClick = { viewModel.resumeSwitch(true) }) { Text("Confirm upload to destination") }
+                        Button(enabled = !busy, onClick = { withLocalNetworkAccess { viewModel.resumeSwitch(true) } }) { Text("Confirm upload to destination") }
                     } else {
-                        Button(enabled = !busy, onClick = { viewModel.resumeSwitch() }) { Text("Resume") }
+                        Button(enabled = !busy, onClick = { withLocalNetworkAccess { viewModel.resumeSwitch() } }) { Text("Resume") }
                     }
                     TextButton(enabled = !busy, onClick = { abandon = true }) { Text("Abandon") }
                 }

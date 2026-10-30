@@ -16,6 +16,7 @@ sealed interface SyncPrerequisiteResult {
     data class InvalidServerUrl(val validationResult: ServerUrlValidationResult) : SyncPrerequisiteResult
     data object MissingClientCertificate : SyncPrerequisiteResult
     data object MissingCaCertificate : SyncPrerequisiteResult
+    data object CaCertificateNotPinned : SyncPrerequisiteResult
     data object MissingClientCertificatePassword : SyncPrerequisiteResult
 }
 
@@ -30,10 +31,9 @@ fun validateSyncPrerequisites(
         return SyncPrerequisiteResult.InvalidServerUrl(urlResult)
     }
     if (settings.clientCertificateUri.isBlank()) return SyncPrerequisiteResult.MissingClientCertificate
+    if (settings.caCertificateUri.isBlank()) return SyncPrerequisiteResult.MissingCaCertificate
     // A CA without a recorded fingerprint cannot be pinned, so it must be selected again.
-    if (settings.caCertificateUri.isBlank() || settings.caCertificateSha256Fingerprint.isBlank()) {
-        return SyncPrerequisiteResult.MissingCaCertificate
-    }
+    if (settings.caCertificateSha256Fingerprint.isBlank()) return SyncPrerequisiteResult.CaCertificateNotPinned
     if (!clientCertificatePasswordAvailable) return SyncPrerequisiteResult.MissingClientCertificatePassword
     return SyncPrerequisiteResult.Ready(
         serverUrl = urlResult.normalizedUrl,
@@ -49,5 +49,6 @@ fun SyncPrerequisiteResult.healthMessage(): String = when (this) {
     is SyncPrerequisiteResult.InvalidServerUrl -> "Invalid server URL"
     SyncPrerequisiteResult.MissingClientCertificate -> "Missing client .p12 certificate"
     SyncPrerequisiteResult.MissingCaCertificate -> "Missing CA certificate"
+    SyncPrerequisiteResult.CaCertificateNotPinned -> "Select CA certificate again"
     SyncPrerequisiteResult.MissingClientCertificatePassword -> "Missing or wrong .p12 password"
 }

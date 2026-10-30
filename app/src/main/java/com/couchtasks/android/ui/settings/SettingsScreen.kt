@@ -31,6 +31,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.couchtasks.android.ui.common.rememberLocalNetworkAccess
 import com.couchtasks.android.viewmodel.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -44,6 +45,7 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel) {
     var switchDialogProfile by rememberSaveable { mutableStateOf<String?>(null) }
     val reviewIntervalDays by settingsViewModel.reviewIntervalDays.collectAsStateWithLifecycle(null)
     var reviewIntervalText by rememberSaveable(reviewIntervalDays) { mutableStateOf(reviewIntervalDays?.toString().orEmpty()) }
+    val withLocalNetworkAccess = rememberLocalNetworkAccess()
 
     LaunchedEffect(settings.profileId) {
         if (switchDialogProfile != null && switchDialogProfile != settings.profileId) {
@@ -121,11 +123,14 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel) {
                         error = serverUrlError,
                         onValueChange = { serverUrl = it; serverUrlError = "" },
                         onSave = {
-                            settingsViewModel.saveServerUrl(
-                                serverUrl,
-                                onValid = { serverUrl = it; serverUrlError = "" },
-                                onInvalid = { serverUrlError = it },
-                            )
+                            val url = serverUrl
+                            withLocalNetworkAccess {
+                                settingsViewModel.saveServerUrl(
+                                    url,
+                                    onValid = { serverUrl = it; serverUrlError = "" },
+                                    onInvalid = { serverUrlError = it },
+                                )
+                            }
                         },
                     )
                 }
@@ -175,13 +180,13 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel) {
             }
             item {
                 Button(
-                    onClick = { settingsViewModel.healthCheck() },
+                    onClick = { withLocalNetworkAccess { settingsViewModel.healthCheck() } },
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text("Health check") }
             }
             item {
                 Button(
-                    onClick = { settingsViewModel.syncNow() },
+                    onClick = { withLocalNetworkAccess { settingsViewModel.syncNow() } },
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text("Sync now") }
             }

@@ -139,7 +139,7 @@ private class ResponseLimitException : IOException("Response exceeds size limit"
 
 // OkHttp exposes the decompressed source here; Content-Length is deliberately not trusted.
 private fun Response.readBounded(limit: Int, truncate: Boolean = false): String {
-    val source = body?.source() ?: return ""
+    val source = body.source()
     val buffer = Buffer()
     while (buffer.size <= limit) {
         if (source.read(buffer, minOf(8192L, limit + 1L - buffer.size)) == -1L) break

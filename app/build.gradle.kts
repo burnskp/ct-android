@@ -21,13 +21,13 @@ require(releaseVersionName == null || releaseVersionName.isNotBlank()) {
 
 android {
     namespace = "com.couchtasks.android"
-    compileSdk = 36
+    compileSdk = 37
     buildToolsVersion = "37.0.0"
 
     defaultConfig {
         applicationId = "com.couchtasks.android"
-        minSdk = 26
-        targetSdk = 36
+        minSdk = 36
+        targetSdk = 37
         versionCode = androidVersionCode
         versionName = releaseVersionName ?: "0.0.0-dev"
 

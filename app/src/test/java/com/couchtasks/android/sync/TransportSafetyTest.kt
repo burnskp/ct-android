@@ -31,11 +31,11 @@ class TransportSafetyTest {
         }.toByteArray().inputStream(), "password".toCharArray(), ca.certificatePem().byteInputStream(),
         pinnedCa.certificate.sha256Fingerprint(),
     )
-    private fun server(cert: HeldCertificate = serverCertificate, trustedClient: HeldCertificate = ca) = MockWebServer().apply {
+    private fun server(cert: HeldCertificate = serverCertificate, trustedClient: HeldCertificate = ca, bindAddress: InetAddress? = null) = MockWebServer().apply {
         protocols = listOf(okhttp3.Protocol.HTTP_1_1)
         useHttps(HandshakeCertificates.Builder().heldCertificate(cert, ca.certificate).addTrustedCertificate(trustedClient.certificate).build().sslSocketFactory())
         requireClientAuth()
-        start()
+        if (bindAddress == null) start() else start(bindAddress, 0)
     }
 
     @Test fun replacedCaCertificateIsRejected() {
@@ -115,7 +115,8 @@ class TransportSafetyTest {
         val client = client().newBuilder()
             .dns { listOf(InetAddress.getByName("127.0.0.2"), InetAddress.getByName("127.0.0.1")) }
             .build()
-        server(untrusted).use { server ->
+        // Bind to IPv4 explicitly so the overridden DNS reaches the listener even where localhost is ::1.
+        server(untrusted, bindAddress = InetAddress.getByName("127.0.0.1")).use { server ->
             val transport = SyncTransport(client)
             val health = transport.healthCheck(server.url("/").toString())
             assertTrue("$health", health is HealthCheckResult.CertificateConfigurationError)

@@ -43,7 +43,7 @@ class SyncPrerequisitesTest {
     @Test
     fun validateSyncPrerequisites_requiresPinnedCaFingerprint() {
         assertEquals(
-            SyncPrerequisiteResult.MissingCaCertificate,
+            SyncPrerequisiteResult.CaCertificateNotPinned,
             validateSyncPrerequisites(
                 SettingsState(
                     serverUrl = "https://tasks.example.com",

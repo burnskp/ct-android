@@ -16,8 +16,8 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-AVD_NAME="${AVD_NAME:-couch-tasks-api36}"
-AVD_PACKAGE="${AVD_PACKAGE:-system-images;android-36;google_apis_playstore;x86_64}"
+AVD_NAME="${AVD_NAME:-couch-tasks-api37}"
+AVD_PACKAGE="${AVD_PACKAGE:-system-images;android-37.0;google_apis_playstore;x86_64}"
 AVD_DEVICE="${AVD_DEVICE:-pixel_8_pro}"
 EMULATOR_PORT="${EMULATOR_PORT:-5554}"
 EMULATOR_FLAGS="${EMULATOR_FLAGS:-}"

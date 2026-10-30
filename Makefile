@@ -31,7 +31,7 @@ help:
 	@echo "  make stop-emulator  Stop the emulator and scrcpy"
 	@echo ""
 	@echo "Options:"
-	@echo "  AVD_NAME=name       AVD for start-emulator (default: couch-tasks-api36, stored in .avd/)"
+	@echo "  AVD_NAME=name       AVD for start-emulator (default: couch-tasks-api37, stored in .avd/)"
 	@echo "  EMULATOR_FLAGS=...  Extra emulator flags for start-emulator"
 	@echo "  SCRCPY=0            Do not open scrcpy from start-emulator"
 	@echo "  DEBUG_KEYSTORE=file Keystore for make sideload signing (default: $(DEBUG_KEYSTORE))"

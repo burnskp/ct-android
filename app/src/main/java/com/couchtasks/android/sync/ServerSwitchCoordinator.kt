@@ -8,6 +8,8 @@ import com.couchtasks.android.data.*
 import com.couchtasks.android.settings.*
 import kotlinx.coroutines.sync.withLock
 import java.io.File
+import java.io.FileNotFoundException
+import java.security.cert.CertificateException
 import java.util.UUID
 
 /** The journal is the write barrier, including after process death. Source records stay untouched until activation. */
@@ -30,7 +32,14 @@ class ServerSwitchCoordinator(
         val activeUrl = validateAndNormalizeServerUrl(settings.currentState().serverUrl)
         if ((activeUrl as? ServerUrlValidationResult.Valid)?.normalizedUrl == canonical) return
         require(clientUri.isNotBlank() && caUri.isNotBlank()) { "Select destination certificates" }
-        val caSha256Fingerprint = caFingerprint(caUri)
+        // Same CA-only rule as Settings; checked before any lock or journal write so a rejection leaves nothing to undo.
+        val caSha256Fingerprint = try {
+            caFingerprint(caUri)
+        } catch (e: CertificateException) {
+            error("Destination CA: ${e.message}")
+        } catch (e: FileNotFoundException) {
+            error("Destination CA: ${e.message}")
+        }
         ConnectionOperations.stopping = true
         cancelWork()
         ConnectionOperations.activeSync?.cancel()
@@ -56,6 +65,8 @@ class ServerSwitchCoordinator(
 
     /** Preview requires a separate explicit confirm. Upload retries use the persisted request verbatim. */
     suspend fun resume(confirmUpload: Boolean = false) = ConnectionOperations.mutex.withLock {
+        // Records the destination CA fingerprint for journals written before CA pinning.
+        settings.initializeProfile()
         val entry = db.connectionDao().journal() ?: return@withLock
         val config = SyncJson.decodeFromString(SettingsState.serializer(), requireNotNull(db.connectionDao().profile(entry.profileId)).settings)
         val staging = openStage(entry.profileId)

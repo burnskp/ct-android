@@ -1,7 +1,6 @@
 package com.couchtasks.android.settings
 
 import android.content.Context
-import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
@@ -77,9 +76,7 @@ class CertificatePasswordStore(private val context: Context, private val profile
             .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
             .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
             .setRandomizedEncryptionRequired(true)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            builder.setUnlockedDeviceRequired(false)
-        }
+            .setUnlockedDeviceRequired(false)
         keyGenerator.init(builder.build())
         return keyGenerator.generateKey()
     }

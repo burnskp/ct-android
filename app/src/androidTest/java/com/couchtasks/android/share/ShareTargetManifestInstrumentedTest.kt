@@ -3,8 +3,6 @@ package com.couchtasks.android.share
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.content.pm.ResolveInfo
-import android.os.Build
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -32,7 +30,7 @@ class ShareTargetManifestInstrumentedTest {
             .putExtra(Intent.EXTRA_TEXT, "https://example.com")
             .setPackage(context.packageName)
 
-        val matches = context.packageManager.queryIntentActivitiesCompat(intent)
+        val matches = context.packageManager.queryIntentActivities(intent, PackageManager.ResolveInfoFlags.of(0))
 
         assertTrue(
             "Expected ShareReceiverActivity to resolve ACTION_SEND text/plain",
@@ -69,12 +67,4 @@ class ShareTargetManifestInstrumentedTest {
             assertTrue(task.syncDirty)
         }
     }
-
-    private fun PackageManager.queryIntentActivitiesCompat(intent: Intent): List<ResolveInfo> =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            queryIntentActivities(intent, PackageManager.ResolveInfoFlags.of(0))
-        } else {
-            @Suppress("DEPRECATION")
-            queryIntentActivities(intent, 0)
-        }
 }

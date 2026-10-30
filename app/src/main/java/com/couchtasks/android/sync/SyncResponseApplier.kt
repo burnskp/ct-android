@@ -52,8 +52,10 @@ class SyncResponseApplier(
         ) {
             throw InvalidSyncResponseException("Response contains duplicate identities")
         }
+        // Validate every project's name here, including ones a local tombstone will make applyProject skip,
+        // so the duplicate check below compares verified keys.
+        response.projects.forEach { it.toCleanEntity() }
         // Each canonical name may replace a local project once; repeats would move the same tasks again.
-        // This is the key applyProject looks up; toCleanEntity rejects names that do not normalize to it.
         if (response.projects.map { it.nameNormalized }.distinct().size != response.projects.size) {
             throw InvalidSyncResponseException("Response contains duplicate project names")
         }

@@ -64,12 +64,10 @@ class SyncTransport(
             }
         } catch (_: ResponseLimitException) {
             HealthCheckResult.ResponseTooLarge
-        } catch (error: SSLException) {
-            coroutineContext.ensureActive()
-            HealthCheckResult.CertificateConfigurationError(error)
         } catch (error: IOException) {
             coroutineContext.ensureActive()
-            HealthCheckResult.NetworkError(error)
+            error.certificateFailure()?.let { HealthCheckResult.CertificateConfigurationError(it) }
+                ?: HealthCheckResult.NetworkError(error)
         }
     }
 
@@ -96,12 +94,10 @@ class SyncTransport(
             }
         } catch (_: ResponseLimitException) {
             SyncTransportResult.ResponseTooLarge
-        } catch (error: SSLException) {
-            coroutineContext.ensureActive()
-            SyncTransportResult.CertificateConfigurationError(error)
         } catch (error: IOException) {
             coroutineContext.ensureActive()
-            SyncTransportResult.NetworkRetryableFailure(error)
+            error.certificateFailure()?.let { SyncTransportResult.CertificateConfigurationError(it) }
+                ?: SyncTransportResult.NetworkRetryableFailure(error)
         }
     }
 
@@ -134,6 +130,13 @@ internal fun buildServiceUrl(baseUrl: String, path: String): String? =
             .toString()
         else -> null
     }
+
+// OkHttp throws the first failed route and suppresses the rest, so an unreachable IPv6 address can mask a TLS rejection.
+// Coroutine stack-trace recovery may also wrap the original exception as the cause.
+private fun Throwable.certificateFailure(): SSLException? =
+    this as? SSLException
+        ?: suppressed.firstNotNullOfOrNull { it as? SSLException }
+        ?: cause?.takeIf { it !== this }?.certificateFailure()
 
 private class ResponseLimitException : IOException("Response exceeds size limit")
 

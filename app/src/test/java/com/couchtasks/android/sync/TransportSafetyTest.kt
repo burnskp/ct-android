@@ -12,6 +12,7 @@ import org.junit.Assert.*
 import org.junit.Test
 import java.io.ByteArrayOutputStream
 import com.couchtasks.android.settings.sha256Fingerprint
+import java.net.InetAddress
 import java.security.KeyStore
 import java.security.cert.CertificateException
 import java.util.concurrent.TimeUnit
@@ -104,6 +105,22 @@ class TransportSafetyTest {
         val untrusted = HeldCertificate.Builder().signedBy(otherCa).addSubjectAlternativeName("localhost").build()
         server(untrusted).use { server ->
             assertTrue(SyncTransport(client()).healthCheck(server.url("/").toString()) is HealthCheckResult.CertificateConfigurationError)
+        }
+    }
+
+    @Test fun certificateRejectionIsReportedWhenAnEarlierRouteFails() = runBlocking {
+        val otherCa = HeldCertificate.Builder().commonName("Test CA").certificateAuthority(1).build()
+        val untrusted = HeldCertificate.Builder().signedBy(otherCa).addSubjectAlternativeName("localhost").build()
+        // An unreachable first address mirrors CI hosts where localhost resolves to ::1 before 127.0.0.1.
+        val client = client().newBuilder()
+            .dns { listOf(InetAddress.getByName("127.0.0.2"), InetAddress.getByName("127.0.0.1")) }
+            .build()
+        server(untrusted).use { server ->
+            val transport = SyncTransport(client)
+            val health = transport.healthCheck(server.url("/").toString())
+            assertTrue("$health", health is HealthCheckResult.CertificateConfigurationError)
+            val sync = transport.sync(server.url("/").toString(), SyncRequest())
+            assertTrue("$sync", sync is SyncTransportResult.CertificateConfigurationError)
         }
     }
 }

@@ -12,6 +12,7 @@ import org.junit.Assert.*
 import org.junit.Test
 import java.io.ByteArrayOutputStream
 import com.couchtasks.android.settings.sha256Fingerprint
+import java.net.InetAddress
 import java.security.KeyStore
 import java.security.cert.CertificateException
 import java.util.concurrent.TimeUnit
@@ -30,11 +31,11 @@ class TransportSafetyTest {
         }.toByteArray().inputStream(), "password".toCharArray(), ca.certificatePem().byteInputStream(),
         pinnedCa.certificate.sha256Fingerprint(),
     )
-    private fun server(cert: HeldCertificate = serverCertificate, trustedClient: HeldCertificate = ca) = MockWebServer().apply {
+    private fun server(cert: HeldCertificate = serverCertificate, trustedClient: HeldCertificate = ca, bindAddress: InetAddress? = null) = MockWebServer().apply {
         protocols = listOf(okhttp3.Protocol.HTTP_1_1)
         useHttps(HandshakeCertificates.Builder().heldCertificate(cert, ca.certificate).addTrustedCertificate(trustedClient.certificate).build().sslSocketFactory())
         requireClientAuth()
-        start()
+        if (bindAddress == null) start() else start(bindAddress, 0)
     }
 
     @Test fun replacedCaCertificateIsRejected() {
@@ -104,6 +105,23 @@ class TransportSafetyTest {
         val untrusted = HeldCertificate.Builder().signedBy(otherCa).addSubjectAlternativeName("localhost").build()
         server(untrusted).use { server ->
             assertTrue(SyncTransport(client()).healthCheck(server.url("/").toString()) is HealthCheckResult.CertificateConfigurationError)
+        }
+    }
+
+    @Test fun certificateRejectionIsReportedWhenAnEarlierRouteFails() = runBlocking {
+        val otherCa = HeldCertificate.Builder().commonName("Test CA").certificateAuthority(1).build()
+        val untrusted = HeldCertificate.Builder().signedBy(otherCa).addSubjectAlternativeName("localhost").build()
+        // An unreachable first address mirrors CI hosts where localhost resolves to ::1 before 127.0.0.1.
+        val client = client().newBuilder()
+            .dns { listOf(InetAddress.getByName("127.0.0.2"), InetAddress.getByName("127.0.0.1")) }
+            .build()
+        // Bind to IPv4 explicitly so the overridden DNS reaches the listener even where localhost is ::1.
+        server(untrusted, bindAddress = InetAddress.getByName("127.0.0.1")).use { server ->
+            val transport = SyncTransport(client)
+            val health = transport.healthCheck(server.url("/").toString())
+            assertTrue("$health", health is HealthCheckResult.CertificateConfigurationError)
+            val sync = transport.sync(server.url("/").toString(), SyncRequest())
+            assertTrue("$sync", sync is SyncTransportResult.CertificateConfigurationError)
         }
     }
 }

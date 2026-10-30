@@ -19,7 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -177,7 +177,7 @@ fun TaskEditorScreen(
                 }
             }
             Text("Status", fontWeight = FontWeight.SemiBold)
-            TabRow(selectedTabIndex = if (status == TaskStatus.Pending) 0 else 1) {
+            PrimaryTabRow(selectedTabIndex = if (status == TaskStatus.Pending) 0 else 1) {
                 Tab(
                     selected = status == TaskStatus.Pending,
                     onClick = { status = TaskStatus.Pending },

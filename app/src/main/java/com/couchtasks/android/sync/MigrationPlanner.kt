@@ -19,7 +19,9 @@ fun planMigration(
     val destinationsByName = destinationProjects.distinctBy { it.nameNormalized }.associateBy { it.nameNormalized }
     val destinationTasksByProject = destinationTasks.groupBy { it.projectUuid }
     val sourceTasksByProject = sourceTasks.groupBy { it.projectUuid }
-    val createdAt = sourceTasks.associate { it.uuid to Instant.parse(it.createdAt) }
+    // Parse lazily so tasks outside the migrated projects are never touched, and cache across both sorts.
+    val parsedCreatedAt = HashMap<String, Instant>()
+    val createdAt = { task: TaskEntity -> parsedCreatedAt.getOrPut(task.uuid) { Instant.parse(task.createdAt) } }
     sourceProjects.sortedBy { it.uuid }.forEach { local ->
         val destination = destinationsByName[normalizeProjectName(local.name)]
         val projectId = destination?.uuid ?: newId().also { id ->
@@ -28,10 +30,10 @@ fun planMigration(
         val existing = destinationTasksByProject[projectId].orEmpty()
         val titles = existing.map { it.title.trim().lowercase(Locale.ROOT) }.toMutableSet()
         val candidates = sourceTasksByProject[local.uuid].orEmpty()
-            .sortedWith(compareBy<TaskEntity> { createdAt.getValue(it.uuid) }.thenBy { it.uuid })
+            .sortedWith(compareBy<TaskEntity> { createdAt(it) }.thenBy { it.uuid })
         val selected = candidates.filter { task ->
             titles.add(task.title.trim().lowercase(Locale.ROOT)).also { if (!it) skipped++ }
-        }.sortedWith(compareBy<TaskEntity> { it.sortOrder }.thenBy { createdAt.getValue(it.uuid) }.thenBy { it.uuid })
+        }.sortedWith(compareBy<TaskEntity> { it.sortOrder }.thenBy { createdAt(it) }.thenBy { it.uuid })
         var order = existing.filter { it.status == TaskStatus.Pending }.maxOfOrNull { it.sortOrder.toLong() } ?: 0L
         selected.forEach { task ->
             val next = if (task.status == TaskStatus.Pending) ++order else 0L

@@ -1,5 +1,6 @@
 package com.couchtasks.android.navigation
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,6 +31,7 @@ import com.couchtasks.android.data.TasksRepository
 import com.couchtasks.android.settings.CertificatePasswordStore
 import com.couchtasks.android.settings.SettingsRepository
 import com.couchtasks.android.sync.ConfiguredSyncRunner
+import com.couchtasks.android.ui.common.LocalNetworkAccessBanner
 import com.couchtasks.android.ui.projects.ProjectsScreen
 import com.couchtasks.android.ui.review.ReviewScreen
 import com.couchtasks.android.ui.settings.SettingsScreen
@@ -88,6 +90,7 @@ fun CouchTasksNavHost(
         if (pendingSwitch != null) navController.navigate(Routes.Settings) { launchSingleTop = true }
     }
     val syncIssue by syncIssueViewModel.issue.collectAsStateWithLifecycle(initialValue = null)
+    val serverUrl = settingsViewModel.settings.collectAsStateWithLifecycle(initialValue = null).value?.serverUrl.orEmpty()
 
     LaunchedEffect(repository) { runCatching { repository.ensureInbox() } }
     LaunchedEffect(tasksViewModel) {
@@ -118,15 +121,18 @@ fun CouchTasksNavHost(
 
     Scaffold(
         topBar = {
-            if (syncIssue != null) {
-                Surface(
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.errorContainer,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { navController.navigate(Routes.SyncIssue) { launchSingleTop = true } }
-                        .testTag("SyncIssueBanner"),
-                ) {
-                    Text("Sync needs attention", Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
+            Column {
+                LocalNetworkAccessBanner(serverUrl, onGranted = onLocalChange)
+                if (syncIssue != null) {
+                    Surface(
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.errorContainer,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { navController.navigate(Routes.SyncIssue) { launchSingleTop = true } }
+                            .testTag("SyncIssueBanner"),
+                    ) {
+                        Text("Sync needs attention", Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
+                    }
                 }
             }
         },

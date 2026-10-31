@@ -38,9 +38,10 @@ class ConfiguredResultMappingTest {
             ConfiguredHealthResult.TlsCertificateError(healthTlsError),
             HealthCheckResult.CertificateConfigurationError(healthTlsError).toConfiguredHealthResult(),
         )
+        val healthNetworkError = IOException("timeout")
         assertEquals(
-            ConfiguredHealthResult.NetworkError,
-            HealthCheckResult.NetworkError(IOException("timeout")).toConfiguredHealthResult(),
+            ConfiguredHealthResult.NetworkError(healthNetworkError),
+            HealthCheckResult.NetworkError(healthNetworkError).toConfiguredHealthResult(),
         )
         assertEquals(
             ConfiguredHealthResult.HttpProtocolError(404),
@@ -60,9 +61,10 @@ class ConfiguredResultMappingTest {
             ConfiguredSyncResult.Success(checkpoint = "7", timestamp = timestamp),
             SyncRunResult.Success(SyncResponse(checkpoint = 7)).toConfiguredSyncResult { timestamp },
         )
+        val syncNetworkError = IOException("timeout")
         assertEquals(
-            ConfiguredSyncResult.NetworkRetryableFailure,
-            SyncRunResult.RetryableFailure(SyncTransportResult.NetworkRetryableFailure(IOException("timeout")))
+            ConfiguredSyncResult.NetworkRetryableFailure(syncNetworkError),
+            SyncRunResult.RetryableFailure(SyncTransportResult.NetworkRetryableFailure(syncNetworkError))
                 .toConfiguredSyncResult { timestamp },
         )
         assertEquals(

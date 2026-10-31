@@ -124,7 +124,7 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel) {
                         onValueChange = { serverUrl = it; serverUrlError = "" },
                         onSave = {
                             val url = serverUrl
-                            withLocalNetworkAccess {
+                            withLocalNetworkAccess(url) {
                                 settingsViewModel.saveServerUrl(
                                     url,
                                     onValid = { serverUrl = it; serverUrlError = "" },
@@ -180,13 +180,13 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel) {
             }
             item {
                 Button(
-                    onClick = { withLocalNetworkAccess { settingsViewModel.healthCheck() } },
+                    onClick = { withLocalNetworkAccess(settings.serverUrl) { settingsViewModel.healthCheck() } },
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text("Health check") }
             }
             item {
                 Button(
-                    onClick = { withLocalNetworkAccess { settingsViewModel.syncNow() } },
+                    onClick = { withLocalNetworkAccess(settings.serverUrl) { settingsViewModel.syncNow() } },
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text("Sync now") }
             }

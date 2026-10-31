@@ -36,7 +36,7 @@ fun ServerSwitchDialog(viewModel: SettingsViewModel, initialUrl: String, onDismi
     fun begin(migrate: Boolean) {
         val (u, c, a, p) = listOf(url, client, ca, password)
         password = ""
-        withLocalNetworkAccess { viewModel.beginSwitch(u, c, a, p, migrate) }
+        withLocalNetworkAccess(u) { viewModel.beginSwitch(u, c, a, p, migrate) }
     }
     val clientPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) runCatching {
@@ -76,9 +76,9 @@ fun ServerSwitchDialog(viewModel: SettingsViewModel, initialUrl: String, onDismi
                     if (entry.phase == "preview") {
                         Text("Projects added: ${entry.projectsAdded}; tasks copied: ${entry.tasksCopied}; tasks skipped: ${entry.tasksSkipped}.")
                         Text("Matching uses normalized project names and trimmed, case-insensitive task titles. Destination tasks win. Skipped tasks’ differing notes/status will not be merged. Another client can still create duplicates concurrently.")
-                        Button(enabled = !busy, onClick = { withLocalNetworkAccess { viewModel.resumeSwitch(true) } }) { Text("Confirm upload to destination") }
+                        Button(enabled = !busy, onClick = { withLocalNetworkAccess(destination) { viewModel.resumeSwitch(true) } }) { Text("Confirm upload to destination") }
                     } else {
-                        Button(enabled = !busy, onClick = { withLocalNetworkAccess { viewModel.resumeSwitch() } }) { Text("Resume") }
+                        Button(enabled = !busy, onClick = { withLocalNetworkAccess(destination) { viewModel.resumeSwitch() } }) { Text("Resume") }
                     }
                     TextButton(enabled = !busy, onClick = { abandon = true }) { Text("Abandon") }
                 }

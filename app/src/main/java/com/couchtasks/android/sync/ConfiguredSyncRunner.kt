@@ -27,7 +27,7 @@ sealed interface ConfiguredHealthResult {
     data object SelectClientCertificateAgain : ConfiguredHealthResult
     data object SelectCaCertificateAgain : ConfiguredHealthResult
     data class TlsCertificateError(val cause: Throwable) : ConfiguredHealthResult
-    data object NetworkError : ConfiguredHealthResult
+    data class NetworkError(val cause: Throwable) : ConfiguredHealthResult
     data class HttpProtocolError(val code: Int) : ConfiguredHealthResult
     data class UnexpectedBody(val body: String) : ConfiguredHealthResult
 }
@@ -42,7 +42,7 @@ sealed interface ConfiguredSyncResult {
     data object SelectClientCertificateAgain : ConfiguredSyncResult
     data object SelectCaCertificateAgain : ConfiguredSyncResult
     data class TlsConfigurationFailure(val cause: Throwable) : ConfiguredSyncResult
-    data object NetworkRetryableFailure : ConfiguredSyncResult
+    data class NetworkRetryableFailure(val cause: Throwable) : ConfiguredSyncResult
     data object LocalStateChangedDuringSync : ConfiguredSyncResult
     data class Http4xxMismatch(val code: Int) : ConfiguredSyncResult {
         var detail: String = ""
@@ -261,6 +261,13 @@ private fun Throwable.isLikelyClientCertificatePasswordError(): Boolean =
         this is UnrecoverableKeyException ||
         cause?.isLikelyClientCertificatePasswordError() == true
 
+private fun Throwable.userVisibleNetworkDetails(): String =
+    if (isLocalNetworkBlocked()) {
+        "local network access is blocked; allow Couch Tasks to access devices on your local network"
+    } else {
+        userVisibleTlsDetails()
+    }
+
 private fun Throwable.userVisibleTlsDetails(): String {
     val seen = mutableSetOf<Throwable>()
     val details = mutableListOf<String>()
@@ -290,7 +297,7 @@ internal fun HealthCheckResult.toConfiguredHealthResult(): ConfiguredHealthResul
     HealthCheckResult.Success -> ConfiguredHealthResult.Success
     is HealthCheckResult.InvalidServerUrl -> ConfiguredHealthResult.InvalidUrl(validationResult)
     is HealthCheckResult.CertificateConfigurationError -> ConfiguredHealthResult.TlsCertificateError(cause)
-    is HealthCheckResult.NetworkError -> ConfiguredHealthResult.NetworkError
+    is HealthCheckResult.NetworkError -> ConfiguredHealthResult.NetworkError(cause)
     is HealthCheckResult.HttpProtocolError -> ConfiguredHealthResult.HttpProtocolError(code)
     is HealthCheckResult.UnexpectedBody -> ConfiguredHealthResult.UnexpectedBody(body)
 }
@@ -299,7 +306,8 @@ internal fun SyncRunResult.toConfiguredSyncResult(successTimestamp: () -> String
     is SyncRunResult.Success -> ConfiguredSyncResult.Success(response.checkpoint.toString(), successTimestamp())
     is SyncRunResult.RetryableFailure -> when (val failedTransport = transportResult) {
         is SyncTransportResult.Http5xxFailure -> ConfiguredSyncResult.Http5xxFailure(failedTransport.code, failedTransport.body)
-        else -> ConfiguredSyncResult.NetworkRetryableFailure
+        is SyncTransportResult.NetworkRetryableFailure -> ConfiguredSyncResult.NetworkRetryableFailure(failedTransport.cause)
+        else -> ConfiguredSyncResult.Failed
     }
     is SyncRunResult.CertificateConfigurationFailure -> ConfiguredSyncResult.TlsConfigurationFailure(transportResult.cause)
     is SyncRunResult.ClientProtocolMismatch -> ConfiguredSyncResult.Http4xxMismatch(
@@ -316,7 +324,7 @@ internal fun SyncRunResult.toConfiguredSyncResult(successTimestamp: () -> String
 }
 
 fun ConfiguredSyncResult.isTransientFailure(): Boolean = when (this) {
-    ConfiguredSyncResult.NetworkRetryableFailure,
+    is ConfiguredSyncResult.NetworkRetryableFailure,
     ConfiguredSyncResult.LocalStateChangedDuringSync,
     is ConfiguredSyncResult.Http5xxFailure -> true
     else -> false
@@ -334,7 +342,7 @@ fun ConfiguredHealthResult.displayMessage(): String = when (this) {
     ConfiguredHealthResult.SelectClientCertificateAgain -> "Select client certificate again"
     ConfiguredHealthResult.SelectCaCertificateAgain -> "Select CA certificate again"
     is ConfiguredHealthResult.TlsCertificateError -> "TLS/certificate error: ${cause.userVisibleTlsDetails()}"
-    ConfiguredHealthResult.NetworkError -> "Network error"
+    is ConfiguredHealthResult.NetworkError -> "Network error: ${cause.userVisibleNetworkDetails()}"
     is ConfiguredHealthResult.HttpProtocolError -> if (code in 300..399) "Server redirect ($code) rejected; configure the final HTTPS URL" else "HTTP/protocol error ($code)"
     is ConfiguredHealthResult.UnexpectedBody -> "Unexpected /healthz response"
 }
@@ -349,7 +357,7 @@ fun ConfiguredSyncResult.displayMessage(): String = when (this) {
     ConfiguredSyncResult.SelectClientCertificateAgain -> "Select client certificate again"
     ConfiguredSyncResult.SelectCaCertificateAgain -> "Select CA certificate again"
     is ConfiguredSyncResult.TlsConfigurationFailure -> "TLS/certificate configuration failure: ${cause.userVisibleTlsDetails()}"
-    ConfiguredSyncResult.NetworkRetryableFailure -> "Network retryable failure"
+    is ConfiguredSyncResult.NetworkRetryableFailure -> "Network retryable failure: ${cause.userVisibleNetworkDetails()}"
     ConfiguredSyncResult.LocalStateChangedDuringSync -> "Local changes happened during sync; sync again"
     is ConfiguredSyncResult.Http4xxMismatch -> "HTTP 4xx client/protocol mismatch (${code})${detail.statusSuffix()}"
     is ConfiguredSyncResult.Http5xxFailure -> "HTTP 5xx server failure (${code})${detail.statusSuffix()}"

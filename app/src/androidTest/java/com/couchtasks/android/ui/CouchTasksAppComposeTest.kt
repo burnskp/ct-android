@@ -101,7 +101,7 @@ class CouchTasksAppComposeTest {
     fun launch_showsAllTab() {
         setAppContent()
 
-        compose.onNodeWithText("All").assertIsDisplayed()
+        compose.onNodeWithContentDescription("All").assertIsDisplayed()
         compose.onAllNodesWithText("All Tasks").assertCountEquals(0)
         compose.onAllNodesWithText("Tasks by Project").assertCountEquals(0)
     }
@@ -110,7 +110,7 @@ class CouchTasksAppComposeTest {
     fun launch_createsAndShowsInboxOnProjectsTab() {
         setAppContent()
 
-        compose.onNodeWithText("Projects").performClick()
+        compose.onNodeWithContentDescription("Projects").performClick()
         compose.waitUntilNodeWithText("Inbox")
         compose.onNodeWithText("Inbox").assertIsDisplayed()
     }
@@ -134,7 +134,7 @@ class CouchTasksAppComposeTest {
 
         setAppContent()
 
-        compose.onNodeWithText("Projects").performClick()
+        compose.onNodeWithContentDescription("Projects").performClick()
         compose.waitUntilNodeWithText("Inbox")
         compose.onNodeWithText("1 pending · 1 done").assertIsDisplayed()
     }
@@ -151,7 +151,7 @@ class CouchTasksAppComposeTest {
 
         setAppContent()
 
-        compose.onNodeWithText("Projects").performClick()
+        compose.onNodeWithContentDescription("Projects").performClick()
         compose.waitUntilNodeWithText("Empty One")
         compose.onNodeWithText("Empty One").performTouchInput { longClick() }
         compose.onNodeWithText("1 selected").assertIsDisplayed()
@@ -175,7 +175,7 @@ class CouchTasksAppComposeTest {
 
         setAppContent()
 
-        compose.onNodeWithText("Projects").performClick()
+        compose.onNodeWithContentDescription("Projects").performClick()
         compose.waitUntilNodeWithText("Inbox")
         compose.onAllNodesWithText("Your Projects").assertCountEquals(0)
         compose.onAllNodesWithText("Edit").assertCountEquals(0)
@@ -302,7 +302,7 @@ class CouchTasksAppComposeTest {
 
         openInboxProject()
         compose.onNodeWithText("Pending").assertIsDisplayed()
-        compose.onNodeWithText("Projects").performClick()
+        compose.onNodeWithContentDescription("Projects").performClick()
 
         compose.waitUntilNodeWithText("0 pending · 0 done")
         compose.onNodeWithText("0 pending · 0 done").assertIsDisplayed()
@@ -475,7 +475,7 @@ class CouchTasksAppComposeTest {
     fun settingsScreen_showsRequiredSyncFields() {
         setAppContent()
 
-        compose.onNodeWithText("Settings").performClick()
+        compose.onNodeWithContentDescription("Settings").performClick()
         compose.onNodeWithText("Settings & Sync").assertIsDisplayed()
         compose.onNodeWithText("Sync Summary").assertIsDisplayed()
         compose.onAllNodesWithText("Server URL").assertCountEquals(2)
@@ -516,7 +516,7 @@ class CouchTasksAppComposeTest {
     fun projectsScreen_doesNotShowSyncSummary() {
         setAppContent()
 
-        compose.onNodeWithText("Projects").performClick()
+        compose.onNodeWithContentDescription("Projects").performClick()
         compose.onAllNodesWithText("Sync Summary").assertCountEquals(0)
     }
 
@@ -524,7 +524,7 @@ class CouchTasksAppComposeTest {
     fun settingsScreen_validatesAndSavesServerUrl() {
         setAppContent()
 
-        compose.onNodeWithText("Settings").performClick()
+        compose.onNodeWithContentDescription("Settings").performClick()
         compose.onNodeWithTag("ServerUrlField").performTextClearance()
         compose.onNodeWithTag("ServerUrlField").performTextInput("http://example.com")
         compose.onNodeWithText("Save server URL").performClick()
@@ -582,7 +582,7 @@ class CouchTasksAppComposeTest {
     fun settingsDueFormat_savesRelativeChoice() {
         setAppContent()
 
-        compose.onNodeWithText("Settings").performClick()
+        compose.onNodeWithContentDescription("Settings").performClick()
         compose.onNodeWithTag("SettingsList").performScrollToNode(hasTestTag("DueFormat-Relative"))
         compose.onNodeWithTag("DueFormat-Relative").performClick()
 
@@ -714,7 +714,7 @@ class CouchTasksAppComposeTest {
     }
 
     private fun openInboxProject() {
-        compose.onNodeWithText("Projects").performClick()
+        compose.onNodeWithContentDescription("Projects").performClick()
         compose.waitUntilNodeWithText("Inbox")
         compose.onNodeWithText("Inbox").performClick()
     }

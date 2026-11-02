@@ -60,9 +60,9 @@ Dependabot checks Gradle dependencies and GitHub Actions every Monday, batching 
 
 ## Sync and your data
 
-Sync uses the self-hosted [Couch Tasks server](https://github.com/burnskp/couch-tasks). Follow the [Android sync setup guide](android-sync-client-guide.md) for server links, certificate preparation, and app configuration.
+Sync uses the self-hosted [Couch Tasks server](https://github.com/burnskp/couch-tasks); see its documentation for server setup and client certificates.
 
-Each sync sends the complete local project and task snapshot to your configured server: project names, task titles and notes, status/order, timestamps, identifiers, revisions, and deletion records. All authorized clients of a server share one dataset; there are no separate private user accounts. TLS protects transport; the server receives the task contents. Sync is not a backup or edit history.
+Each sync sends the complete local project and task snapshot to your configured server: project names, task titles and notes, status/order, due dates and reminder flags, timestamps, identifiers, revisions, and deletion records. All authorized clients of a server share one dataset; there are no separate private user accounts. TLS protects transport; the server receives the task contents. Sync is not a backup or edit history.
 
 Certificate passwords are encrypted using Android Keystore. Settings, password preferences, and the local task database are excluded from Android cloud backup and device transfer. Preserve your tasks through a verified sync before replacing an installation or clearing app data.
 

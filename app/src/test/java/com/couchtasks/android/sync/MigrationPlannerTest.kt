@@ -8,7 +8,8 @@ class MigrationPlannerTest {
     private val time = "2026-01-01T00:00:00Z"
     private fun project(id: String, name: String) = ProjectEntity(id, name, normalizeProjectName(name), time, time)
     private fun task(id: String, project: String, title: String, order: Int = 1, status: String = "pending", created: String = time) =
-        TaskEntity(id, project, title, "notes-$id", status, order, created, time, if (status == "done") time else null, 44, true, "reviewed-$id")
+        TaskEntity(id, project, title, "notes-$id", status, order, created, time, if (status == "done") time else null, 44, true, "reviewed-$id",
+            "2026-02-01T09:00:00Z", status == "pending")
 
     @Test fun destinationWinsAndIncomingDuplicatesChooseEarliestThenUuid() {
         val local = project("local", " WORK ")
@@ -27,6 +28,8 @@ class MigrationPlannerTest {
         val copies = result.request.tasks.filter { it.syncDirty }
         assertEquals(listOf("notes-a", "notes-earliest"), copies.map { it.notes })
         assertEquals(listOf("reviewed-a", "reviewed-earliest"), copies.map { it.reviewedAt })
+        assertEquals(listOf("2026-02-01T09:00:00Z", "2026-02-01T09:00:00Z"), copies.map { it.dueAt })
+        assertEquals(listOf(true, true), copies.map { it.remind })
         assertEquals(listOf(3L, 4L), copies.map { it.sortOrder })
         assertTrue(copies.all { it.projectUuid == "remote" && it.syncRevision == 0L && it.uuid.startsWith("fresh-") })
         assertEquals(listOf("dest", "duplicate"), result.request.tasks.filterNot { it.syncDirty }.map { it.uuid })

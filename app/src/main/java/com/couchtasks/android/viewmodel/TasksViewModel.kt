@@ -25,6 +25,8 @@ class TasksViewModel(
         title: String,
         notes: String,
         status: String = TaskStatus.Pending,
+        dueAt: String? = null,
+        remind: Boolean = false,
         onSuccess: () -> Unit = {},
     ) {
         launchTaskAction {
@@ -33,6 +35,8 @@ class TasksViewModel(
                 title = title,
                 notes = notes,
                 status = status,
+                dueAt = dueAt,
+                remind = remind,
             )
             onSuccess()
         }
@@ -44,6 +48,8 @@ class TasksViewModel(
         notes: String,
         projectUuid: String,
         status: String,
+        dueAt: String?,
+        remind: Boolean,
         onSuccess: () -> Unit = {},
     ) {
         launchTaskAction {
@@ -53,6 +59,8 @@ class TasksViewModel(
                 notes = notes,
                 projectUuid = projectUuid,
                 status = status,
+                dueAt = dueAt,
+                remind = remind,
             )
             onSuccess()
         }

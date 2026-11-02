@@ -60,6 +60,8 @@ fun TaskEditorScreen(
     var title by remember(taskUuid) { mutableStateOf(initialTitle) }
     var notes by remember(taskUuid) { mutableStateOf(initialNotes) }
     var status by remember(taskUuid) { mutableStateOf(TaskStatus.Pending) }
+    var dueAt by remember(taskUuid) { mutableStateOf<String?>(null) }
+    var remind by remember(taskUuid) { mutableStateOf(false) }
     var loadedTask by remember(taskUuid) { mutableStateOf<TaskEntity?>(null) }
     var finishedLoading by remember(taskUuid) { mutableStateOf(isNew) }
     var attemptedSave by remember(taskUuid) { mutableStateOf(false) }
@@ -74,6 +76,8 @@ fun TaskEditorScreen(
                 title = task.title
                 notes = task.notes
                 status = task.status
+                dueAt = task.dueAt
+                remind = task.remind
             }
         }
     }
@@ -90,6 +94,8 @@ fun TaskEditorScreen(
                 title = title,
                 notes = notes,
                 status = status,
+                dueAt = dueAt,
+                remind = remind,
                 onSuccess = onBack,
             )
         } else {
@@ -99,6 +105,8 @@ fun TaskEditorScreen(
                 notes = notes,
                 projectUuid = selectedProjectUuid,
                 status = status,
+                dueAt = dueAt,
+                remind = remind,
                 onSuccess = onBack,
             )
         }

@@ -61,6 +61,8 @@ class SyncModelsJsonTest {
                         syncRevision = 4,
                         syncDirty = true,
                         reviewedAt = "2026-04-27T10:03:00Z",
+                        dueAt = "2026-05-01T13:00:00Z",
+                        remind = true,
                     ),
                 ),
                 tombstones = listOf(
@@ -85,6 +87,27 @@ class SyncModelsJsonTest {
         assertTrue(encoded.contains("\"entity_type\":\"task\""))
         assertTrue(encoded.contains("\"deleted_at\":\"2026-04-27T10:05:00Z\""))
         assertTrue(encoded.contains("\"reviewed_at\":\"2026-04-27T10:03:00Z\""))
+        assertTrue(encoded.contains("\"due_at\":\"2026-05-01T13:00:00Z\""))
+        assertTrue(encoded.contains("\"remind\":true"))
+    }
+
+    @Test
+    fun taskWithoutDueAt_encodesExplicitNull() {
+        val task = SyncJson.decodeFromString(SyncRequest.serializer(), fixture("request.json")).tasks[1]
+
+        val encoded = SyncJson.encodeToString(SyncTask.serializer(), task)
+
+        assertTrue(encoded.contains("\"due_at\":null"))
+        assertTrue(encoded.contains("\"remind\":false"))
+    }
+
+    @Test
+    fun responseTaskWithoutDueFields_failsToDecode() {
+        val withoutRemind = fixture("response.json").replace(",\n      \"remind\": true", "")
+        val withoutDueAt = fixture("response.json").replace("\n      \"due_at\": \"2026-05-01T13:00:00Z\",", "")
+
+        assertTrue(runCatching { SyncJson.decodeFromString(SyncResponse.serializer(), withoutRemind) }.isFailure)
+        assertTrue(runCatching { SyncJson.decodeFromString(SyncResponse.serializer(), withoutDueAt) }.isFailure)
     }
 
     @Test
@@ -93,6 +116,8 @@ class SyncModelsJsonTest {
         val decoded = SyncJson.decodeFromString(SyncRequest.serializer(), fixture)
 
         assertEquals(listOf("2026-04-27T10:03:00Z", "2026-04-27T09:00:00Z"), decoded.tasks.map { it.reviewedAt })
+        assertEquals(listOf("2026-05-01T13:00:00Z", null), decoded.tasks.map { it.dueAt })
+        assertEquals(listOf(true, false), decoded.tasks.map { it.remind })
         assertEquals(parse(fixture), parse(SyncJson.encodeToString(SyncRequest.serializer(), decoded)))
     }
 
@@ -102,18 +127,20 @@ class SyncModelsJsonTest {
         val decoded = SyncJson.decodeFromString(SyncResponse.serializer(), fixture)
 
         assertEquals("2026-04-27T10:03:00Z", decoded.tasks.single().reviewedAt)
+        assertEquals("2026-05-01T13:00:00Z", decoded.tasks.single().dueAt)
+        assertTrue(decoded.tasks.single().remind)
         assertEquals(parse(fixture), parse(SyncJson.encodeToString(SyncResponse.serializer(), decoded)))
     }
 
     @Test
     fun preV4TaskWithoutReviewedAt_decodesAsNull() {
-        val legacy = fixture("response.json").replace(",\n      \"reviewed_at\": \"2026-04-27T10:03:00Z\"", "")
+        val legacy = fixture("response.json").replace("\n      \"reviewed_at\": \"2026-04-27T10:03:00Z\",", "")
         val decoded = SyncJson.decodeFromString(SyncResponse.serializer(), legacy)
 
         assertNull(decoded.tasks.single().reviewedAt)
     }
 
-    /** Copied verbatim from couch-tasks `tests/fixtures/sync/` (commit 7deae65). */
+    /** Copied verbatim from couch-tasks `tests/fixtures/sync/` (commit ebf6c2a). */
     private fun fixture(name: String): String =
         requireNotNull(javaClass.getResource("/sync/$name")) { "Missing fixture $name" }.readText()
 

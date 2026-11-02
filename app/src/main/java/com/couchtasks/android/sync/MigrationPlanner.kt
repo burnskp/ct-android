@@ -39,7 +39,7 @@ fun planMigration(
             val next = if (task.status == TaskStatus.Pending) ++order else 0L
             require(next <= Int.MAX_VALUE) { "Destination task order is full" }
             tasks += SyncTask(newId(), projectId, next, task.title, task.notes, task.status,
-                task.createdAt, task.updatedAt, task.completedAt, reviewedAt = task.reviewedAt)
+                task.createdAt, task.updatedAt, task.completedAt, reviewedAt = task.reviewedAt, dueAt = task.dueAt, remind = task.remind)
         }
     }
     return MigrationPreview(SyncRequest(checkpoint, destinationProjects.map { it.toSyncProject().copy(syncDirty = false) } + projects,

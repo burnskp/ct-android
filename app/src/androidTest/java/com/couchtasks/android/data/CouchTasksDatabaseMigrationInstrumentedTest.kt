@@ -128,6 +128,38 @@ class CouchTasksDatabaseMigrationInstrumentedTest {
         migrated.close()
     }
 
+    @Test
+    fun migration5To6_addsEmptyDueFieldsWithoutDirtyingRows() {
+        helper.createDatabase("migration-v6", 5).apply {
+            insertVersion1Project()
+            execSQL(
+                """
+                INSERT INTO tasks(
+                    uuid, project_uuid, title, notes, status, sort_order, created_at, updated_at,
+                    completed_at, sync_revision, sync_dirty, reviewed_at
+                ) VALUES (
+                    'task-1', 'project-1', 'Read', '', 'pending', 1,
+                    '2026-04-27T10:03:00Z', '2026-04-28T09:00:00Z', null, 9, 0, '2026-04-27T10:03:00Z'
+                )
+                """.trimIndent(),
+            )
+            close()
+        }
+        val migrated = helper.runMigrationsAndValidate("migration-v6", 6, true, *CouchTasksDatabase.migrations())
+        migrated.query("SELECT due_at, remind, updated_at, sync_dirty FROM tasks WHERE uuid = 'task-1'").use {
+            assertTrue(it.moveToFirst())
+            assertTrue(it.isNull(0))
+            assertEquals(0, it.getInt(1))
+            assertEquals("2026-04-28T09:00:00Z", it.getString(2))
+            assertEquals(0, it.getInt(3))
+        }
+        migrated.query("SELECT COUNT(*) FROM reminder_notified").use {
+            assertTrue(it.moveToFirst())
+            assertEquals(0, it.getInt(0))
+        }
+        migrated.close()
+    }
+
     private fun SupportSQLiteDatabase.insertVersion1Project() {
         execSQL(
             """

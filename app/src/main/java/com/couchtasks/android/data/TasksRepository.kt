@@ -24,6 +24,8 @@ class TasksRepository(
 
     fun observeReviewQueue(cutoff: String): Flow<List<ReviewProject>> = projects.observeReviewQueue(cutoff)
 
+    fun observeDueTasks(): Flow<List<DueTask>> = tasks.observeDueTasks()
+
     fun observeSyncIssue(): Flow<SyncIssueEntity?> = db.syncIssueDao().observe()
 
     suspend fun getProject(uuid: String): ProjectEntity? = projects.get(uuid)
@@ -125,10 +127,13 @@ class TasksRepository(
         title: String,
         notes: String = "",
         status: String = TaskStatus.Pending,
+        dueAt: String? = null,
+        remind: Boolean = false,
     ): TaskEntity = WriteSyncMutex.mutex.withLock {
         db.requireNotSwitching()
         val trimmedTitle = requireTaskTitle(title)
         val validStatus = TaskStatus.requireValid(status)
+        val (validDueAt, validRemind) = normalizeDue(dueAt, remind)
         db.withTransaction {
             requireNotNull(projects.get(projectUuid)) { "Project not found" }
             val now = utcNowRfc3339()
@@ -146,6 +151,8 @@ class TasksRepository(
                 syncRevision = 0,
                 syncDirty = true,
                 reviewedAt = now,
+                dueAt = validDueAt,
+                remind = validRemind,
             ).also { tasks.insert(it) }
         }
     }
@@ -156,10 +163,13 @@ class TasksRepository(
         notes: String,
         projectUuid: String,
         status: String,
+        dueAt: String?,
+        remind: Boolean,
     ): TaskEntity = WriteSyncMutex.mutex.withLock {
         db.requireNotSwitching()
         val trimmedTitle = requireTaskTitle(title)
         val validStatus = TaskStatus.requireValid(status)
+        val (validDueAt, validRemind) = normalizeDue(dueAt, remind)
         db.withTransaction {
             requireNotNull(projects.get(projectUuid)) { "Project not found" }
             val task = requireNotNull(tasks.get(taskUuid)) { "Task not found" }
@@ -184,6 +194,8 @@ class TasksRepository(
                 updatedAt = now,
                 completedAt = completedAt,
                 syncDirty = true,
+                dueAt = validDueAt,
+                remind = validRemind,
             ).also {
                 tasks.update(it)
                 if (task.status == TaskStatus.Pending) compactPendingOrders(task.projectUuid)

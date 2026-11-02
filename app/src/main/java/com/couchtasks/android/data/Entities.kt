@@ -54,6 +54,17 @@ data class TaskEntity(
     @ColumnInfo(name = "sync_revision") val syncRevision: Long = 0,
     @ColumnInfo(name = "sync_dirty") val syncDirty: Boolean = true,
     @ColumnInfo(name = "reviewed_at", defaultValue = "") val reviewedAt: String,
+    /** Canonical UTC (`YYYY-MM-DDTHH:MM:SSZ`), or null. See [DueDates]. */
+    @ColumnInfo(name = "due_at") val dueAt: String? = null,
+    /** True only when [dueAt] is set. */
+    @ColumnInfo(defaultValue = "0") val remind: Boolean = false,
+)
+
+/** Reminders this device has already notified (or deliberately skipped). Local only; never synced. */
+@Entity(tableName = "reminder_notified", primaryKeys = ["task_uuid", "due_at"])
+data class ReminderNotifiedEntity(
+    @ColumnInfo(name = "task_uuid") val taskUuid: String,
+    @ColumnInfo(name = "due_at") val dueAt: String,
 )
 
 @Entity(
@@ -98,6 +109,11 @@ data class ProjectWithCounts(
     val name: String,
     val pendingCount: Int,
     val doneCount: Int,
+)
+
+data class DueTask(
+    @androidx.room.Embedded val task: TaskEntity,
+    @ColumnInfo(name = "project_name") val projectName: String,
 )
 
 data class ReviewProject(

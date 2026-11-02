@@ -52,6 +52,9 @@ data class SyncTask(
     @SerialName("sync_dirty") val syncDirty: Boolean = true,
     /** Required by v4 servers; null only when decoding a response from an older server. */
     @SerialName("reviewed_at") val reviewedAt: String? = null,
+    /** Required by the server, and always present in its responses; `null` means no due date. */
+    @SerialName("due_at") val dueAt: String?,
+    @SerialName("remind") val remind: Boolean,
 )
 
 @Serializable

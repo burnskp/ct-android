@@ -91,6 +91,21 @@ interface TaskDao {
     )
     fun observeAllTasks(): Flow<List<TaskEntity>>
 
+    /** Pending tasks with a due date, in `ct list --due` order. NOCASE folds ASCII only, like the CLI's SQLite. */
+    @Query(
+        """
+        SELECT t.*, p.name AS project_name
+        FROM tasks t JOIN projects p ON p.uuid = t.project_uuid
+        WHERE t.status = 'pending' AND t.due_at IS NOT NULL
+        ORDER BY t.due_at ASC,
+            CASE WHEN p.name_normalized = 'inbox' THEN 0 ELSE 1 END,
+            p.name COLLATE NOCASE,
+            t.sort_order ASC,
+            t.uuid ASC
+        """,
+    )
+    fun observeDueTasks(): Flow<List<DueTask>>
+
     @Query("SELECT * FROM tasks WHERE project_uuid = :projectUuid AND status = 'pending' ORDER BY sort_order ASC, created_at ASC, uuid ASC")
     suspend fun pendingTasks(projectUuid: String): List<TaskEntity>
 

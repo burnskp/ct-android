@@ -54,6 +54,87 @@ class TasksRepositoryInstrumentedTest {
     }
 
     @Test
+    fun createTask_storesDueFieldsAndDropsReminderWithoutDueDate() = runBlocking {
+        val project = repository.createProject("Home")
+
+        val due = repository.createTask(project.uuid, "Due", dueAt = "2026-11-15T14:00:00Z", remind = true)
+        val undated = repository.createTask(project.uuid, "Undated", remind = true)
+
+        assertEquals("2026-11-15T14:00:00Z", due.dueAt)
+        assertTrue(due.remind)
+        assertNull(undated.dueAt)
+        assertFalse(undated.remind)
+        assertEquals(due, db.taskDao().get(due.uuid))
+    }
+
+    @Test
+    fun createAndEditTask_rejectNonCanonicalDueAt() = runBlocking {
+        val project = repository.createProject("Home")
+        val task = repository.createTask(project.uuid, "Read")
+
+        assertTrue(runCatching { repository.createTask(project.uuid, "Bad", dueAt = "2026-11-15") }.isFailure)
+        assertTrue(
+            runCatching {
+                repository.editTask(task.uuid, "Read", "", project.uuid, TaskStatus.Pending, "2026-11-15T09:00:00-05:00", false)
+            }.isFailure,
+        )
+        assertNull(db.taskDao().get(task.uuid)!!.dueAt)
+    }
+
+    @Test
+    fun editTask_clearingDueAtClearsReminderAndDirtiesTask() = runBlocking {
+        val project = repository.createProject("Home")
+        val task = repository.createTask(project.uuid, "Read", dueAt = "2026-11-15T14:00:00Z", remind = true)
+        db.taskDao().update(task.copy(updatedAt = "2026-01-01T00:00:00Z", syncDirty = false))
+
+        val edited = repository.editTask(task.uuid, "Read", "", project.uuid, TaskStatus.Pending, dueAt = null, remind = true)
+
+        assertNull(edited.dueAt)
+        assertFalse(edited.remind)
+        assertNotEquals("2026-01-01T00:00:00Z", edited.updatedAt)
+        assertTrue(edited.syncDirty)
+    }
+
+    @Test
+    fun completeAndReopen_keepDueFields() = runBlocking {
+        val project = repository.createProject("Home")
+        val task = repository.createTask(project.uuid, "Read", dueAt = "2026-11-15T14:00:00Z", remind = true)
+
+        val done = repository.completeTask(task.uuid)
+        val reopened = repository.reopenTask(task.uuid)
+
+        assertEquals("2026-11-15T14:00:00Z" to true, done.dueAt to done.remind)
+        assertEquals("2026-11-15T14:00:00Z" to true, reopened.dueAt to reopened.remind)
+    }
+
+    @Test
+    fun observeDueTasks_listsPendingDueTasksInCliOrder() = runBlocking {
+        val inbox = repository.ensureInbox()
+        val zulu = repository.createProject("zulu")
+        val alpha = repository.createProject("Alpha")
+        val due = "2026-11-15T14:00:00Z"
+        repository.createTask(zulu.uuid, "Zulu", dueAt = due)
+        repository.createTask(alpha.uuid, "Alpha second", dueAt = due)
+        repository.createTask(alpha.uuid, "Undated")
+        repository.createTask(inbox.uuid, "Inbox", dueAt = due, remind = true)
+        repository.createTask(alpha.uuid, "Alpha later", dueAt = "2026-11-16T14:00:00Z")
+        repository.createTask(alpha.uuid, "Earliest", dueAt = "2026-11-01T14:00:00Z")
+        repository.completeTask(repository.createTask(alpha.uuid, "Done", dueAt = "2026-10-01T14:00:00Z").uuid)
+        // Created last but moved to the top, so position (not creation) breaks the tie with "Alpha second".
+        val alphaFirst = repository.createTask(alpha.uuid, "Alpha first", dueAt = due)
+        val others = db.taskDao().pendingTasks(alpha.uuid).map { it.uuid } - alphaFirst.uuid
+        repository.reorderPendingTasks(alpha.uuid, listOf(alphaFirst.uuid) + others)
+
+        val listed = repository.observeDueTasks().first()
+
+        assertEquals(
+            listOf("Earliest", "Inbox", "Alpha first", "Alpha second", "Zulu", "Alpha later"),
+            listed.map { it.task.title },
+        )
+        assertEquals(listOf("Alpha", "Inbox", "Alpha", "Alpha", "zulu", "Alpha"), listed.map { it.projectName })
+    }
+
+    @Test
     fun createTask_setsReviewedAtToCreatedAtInWholeSeconds() = runBlocking {
         val project = repository.createProject("Home")
         val task = repository.createTask(project.uuid, "Read")
@@ -68,7 +149,7 @@ class TasksRepositoryInstrumentedTest {
         val task = repository.createTask(project.uuid, "Read")
         db.taskDao().update(task.copy(reviewedAt = "2026-01-01T00:00:00Z", syncDirty = false))
 
-        val edited = repository.editTask(task.uuid, "Read more", "", project.uuid, TaskStatus.Pending)
+        val edited = repository.editTask(task.uuid, "Read more", "", project.uuid, TaskStatus.Pending, dueAt = null, remind = false)
 
         assertEquals("2026-01-01T00:00:00Z", edited.reviewedAt)
     }
@@ -167,6 +248,8 @@ class TasksRepositoryInstrumentedTest {
             notes = " updated ",
             projectUuid = project.uuid,
             status = TaskStatus.Pending,
+            dueAt = null,
+            remind = false,
         )
         assertEquals("Call Alex", edited.title)
         assertEquals(" updated ", edited.notes)
@@ -288,6 +371,8 @@ class TasksRepositoryInstrumentedTest {
             notes = moved.notes,
             projectUuid = destination.uuid,
             status = TaskStatus.Done,
+            dueAt = null,
+            remind = false,
         )
 
         assertEquals(destination.uuid, edited.projectUuid)

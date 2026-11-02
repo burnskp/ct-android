@@ -2,6 +2,7 @@ package com.couchtasks.android.sync
 
 import androidx.room.withTransaction
 import com.couchtasks.android.data.CouchTasksDatabase
+import com.couchtasks.android.data.DueDates
 import com.couchtasks.android.data.TasksRepository.Companion.ENTITY_PROJECT
 import com.couchtasks.android.data.TasksRepository.Companion.ENTITY_TASK
 import com.couchtasks.android.data.ProjectEntity
@@ -162,6 +163,10 @@ class SyncResponseApplier(
     private fun SyncTask.toCleanEntity(existing: TaskEntity?): TaskEntity {
         val validStatus = TaskStatus.requireValid(status)
         val validTitle = requireTaskTitle(title)
+        if (dueAt != null && !DueDates.isCanonical(dueAt)) {
+            throw InvalidSyncResponseException("Task $uuid has an invalid due_at timestamp: \"$dueAt\"")
+        }
+        if (remind && dueAt == null) throw InvalidSyncResponseException("Task $uuid has a reminder without a due date")
         return TaskEntity(
             uuid = uuid,
             projectUuid = projectUuid,
@@ -176,6 +181,8 @@ class SyncResponseApplier(
             syncDirty = false,
             // A pre-v4 server omits reviewed_at; keep what we have rather than failing the sync.
             reviewedAt = reviewedAt ?: existing?.reviewedAt ?: createdAt,
+            dueAt = dueAt,
+            remind = remind,
         )
     }
 

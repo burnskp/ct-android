@@ -15,8 +15,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         SyncTombstoneEntity::class,
         SyncStateEntity::class,
         SyncIssueEntity::class,
+        ReminderNotifiedEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 abstract class CouchTasksDatabase : RoomDatabase() {
@@ -71,7 +72,19 @@ abstract class CouchTasksDatabase : RoomDatabase() {
             }
         }
 
-        fun migrations(): Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE tasks ADD COLUMN due_at TEXT")
+                db.execSQL("ALTER TABLE tasks ADD COLUMN remind INTEGER NOT NULL DEFAULT 0")
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `reminder_notified` (`task_uuid` TEXT NOT NULL, `due_at` TEXT NOT NULL, " +
+                        "PRIMARY KEY(`task_uuid`, `due_at`))",
+                )
+            }
+        }
+
+        fun migrations(): Array<Migration> =
+            arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
 
         fun create(context: Context): CouchTasksDatabase = Room.databaseBuilder(
             context.applicationContext,

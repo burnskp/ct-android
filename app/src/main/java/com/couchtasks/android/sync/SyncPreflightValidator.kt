@@ -2,6 +2,7 @@ package com.couchtasks.android.sync
 
 import androidx.room.withTransaction
 import com.couchtasks.android.data.CouchTasksDatabase
+import com.couchtasks.android.data.DueDates
 import com.couchtasks.android.data.ProjectEntity
 import com.couchtasks.android.data.SyncIssueEntity
 import com.couchtasks.android.data.TaskStatus
@@ -13,7 +14,7 @@ sealed interface SyncPreflightResult {
     data class Invalid(val issue: SyncIssueEntity) : SyncPreflightResult
 }
 
-/** Validates a full snapshot and performs only the two repairs defined by the protocol guide. */
+/** Validates a full snapshot and repairs project names, pending order, and reminders without a due date. */
 class SyncPreflightValidator(
     private val db: CouchTasksDatabase,
     private val now: () -> String = ::utcNowRfc3339,
@@ -110,6 +111,14 @@ class SyncPreflightValidator(
                 it.projectUuid,
             )
         }
+
+        tasks.firstOrNull { it.dueAt != null && !DueDates.isCanonical(it.dueAt) }?.let {
+            return@withTransaction invalid(checkpoint, "Task ${it.uuid} has an invalid due_at timestamp: \"${it.dueAt}\"", it.uuid)
+        }
+        tasks.filter { it.remind && it.dueAt == null }.forEach { task ->
+            db.taskDao().update(task.copy(remind = false, updatedAt = repairTime, syncDirty = true))
+        }
+        tasks = db.taskDao().allTasks()
 
         tasks.filter { it.status == TaskStatus.Pending }
             .groupBy { it.projectUuid }

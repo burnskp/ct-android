@@ -76,6 +76,8 @@ class SyncCoordinatorInstrumentedTest {
         assertTrue(requestBody.contains("\"uuid\":\"${project.uuid}\""))
         assertTrue(requestBody.contains("\"sync_dirty\":true"))
         assertTrue(requestBody.contains("\"reviewed_at\":\"${task.createdAt}\""))
+        assertTrue(requestBody.contains("\"due_at\":null"))
+        assertTrue(requestBody.contains("\"remind\":false"))
         assertEquals("10", db.syncStateDao().get(SyncExporter.CHECKPOINT_KEY))
         assertEquals(1, db.projectDao().get(project.uuid)!!.syncRevision)
         assertFalse(db.projectDao().get(project.uuid)!!.syncDirty)
@@ -447,6 +449,82 @@ class SyncCoordinatorInstrumentedTest {
     }
 
     @Test
+    fun dueFields_roundTripThroughSync() = runBlocking {
+        val project = repository.createProject("Home")
+        val local = repository.createTask(project.uuid, "Local", dueAt = "2026-11-15T14:00:00Z", remind = true)
+        val cleared = repository.createTask(project.uuid, "Cleared", dueAt = "2026-11-16T14:00:00Z", remind = true)
+        var sentBody = ""
+        val coordinator = coordinatorReturning { request ->
+            sentBody = Buffer().also { request.body?.writeTo(it) }.readUtf8()
+            response(
+                body = """
+                {
+                  "checkpoint": 3,
+                  "projects": [${projectJson(project.uuid, "Home", "home", 1, syncDirty = false)}],
+                  "tasks": [
+                    ${taskJson(local.uuid, project.uuid, "Local", "", 1, 2, syncDirty = false, dueAt = "2026-11-15T14:00:00Z", remind = true)},
+                    ${taskJson(cleared.uuid, project.uuid, "Cleared", "", 2, 2, syncDirty = false)},
+                    ${taskJson("server-task", project.uuid, "Remote", "", 3, 2, syncDirty = false, dueAt = "2026-12-01T09:00:00Z")}
+                  ],
+                  "tombstones": []
+                }
+                """.trimIndent(),
+            )
+        }
+
+        assertTrue(coordinator.syncOnce("https://tasks.example.com") is SyncRunResult.Success)
+        assertTrue(sentBody.contains("\"due_at\":\"2026-11-15T14:00:00Z\",\"remind\":true"))
+        assertEquals("2026-11-15T14:00:00Z" to true, db.taskDao().get(local.uuid)!!.let { it.dueAt to it.remind })
+        assertEquals(null to false, db.taskDao().get(cleared.uuid)!!.let { it.dueAt to it.remind })
+        assertEquals("2026-12-01T09:00:00Z" to false, db.taskDao().get("server-task")!!.let { it.dueAt to it.remind })
+    }
+
+    @Test
+    fun invalidDueFieldsInResponse_rollBackRowsAndCheckpoint() = runBlocking {
+        listOf(
+            taskJson("task-1", "%s", "Bad", "", 1, 1, syncDirty = false, dueAt = "2026-11-15T09:00:00-05:00"),
+            taskJson("task-1", "%s", "Bad", "", 1, 1, syncDirty = false, remind = true),
+        ).forEach { badTask ->
+            db.syncStateDao().set(SyncStateEntity(SyncExporter.CHECKPOINT_KEY, "7"))
+            val project = repository.ensureInbox()
+            val coordinator = coordinatorReturning {
+                response(
+                    body = """
+                    {
+                      "checkpoint": 8,
+                      "projects": [${projectJson(project.uuid, "Inbox", "inbox", 1, syncDirty = false)}],
+                      "tasks": [${badTask.format(project.uuid)}],
+                      "tombstones": []
+                    }
+                    """.trimIndent(),
+                )
+            }
+
+            assertTrue(coordinator.syncOnce("https://tasks.example.com") is SyncRunResult.RolledBackInvalidResponse)
+            assertEquals("7", db.syncStateDao().get(SyncExporter.CHECKPOINT_KEY))
+            assertNull(db.taskDao().get("task-1"))
+        }
+    }
+
+    @Test
+    fun preflightDropsReminderWithoutDueDateBeforeSending() = runBlocking {
+        val project = repository.createProject("Home")
+        val task = repository.createTask(project.uuid, "Read")
+        db.taskDao().upsert(task.copy(remind = true, syncDirty = false))
+        var sentBody = ""
+        val coordinator = coordinatorReturning { request ->
+            sentBody = Buffer().also { request.body?.writeTo(it) }.readUtf8()
+            response(body = emptySyncResponse(1))
+        }
+
+        assertTrue(coordinator.syncOnce("https://tasks.example.com") is SyncRunResult.Success)
+        val repaired = db.taskDao().get(task.uuid)!!
+        assertFalse(repaired.remind)
+        assertTrue(repaired.syncDirty)
+        assertTrue(sentBody.contains("\"due_at\":null,\"remind\":false"))
+    }
+
+    @Test
     fun responseWithoutReviewedAt_keepsLocalValueOrFallsBackToCreatedAt() = runBlocking {
         val project = repository.createProject("Home")
         val local = repository.createTask(project.uuid, "Local")
@@ -525,6 +603,8 @@ class SyncCoordinatorInstrumentedTest {
         revision: Long,
         syncDirty: Boolean,
         reviewedAt: String? = "2026-04-27T10:03:00Z",
+        dueAt: String? = null,
+        remind: Boolean = false,
     ): String = """
         {
           "uuid": "$uuid",
@@ -537,6 +617,8 @@ class SyncCoordinatorInstrumentedTest {
           "updated_at": "2026-04-27T10:03:00Z",
           "completed_at": null,
           "sync_revision": $revision,
+          "due_at": ${dueAt?.let { "\"$it\"" } ?: "null"},
+          "remind": $remind,
           "sync_dirty": $syncDirty${reviewedAt?.let { ",\n  \"reviewed_at\": \"$it\"" }.orEmpty()}
         }
     """.trimIndent()

@@ -15,7 +15,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         SyncTombstoneEntity::class,
         SyncStateEntity::class,
         SyncIssueEntity::class,
-        ReminderNotifiedEntity::class,
+        ReminderStateEntity::class,
     ],
     version = 6,
     exportSchema = true,
@@ -27,6 +27,7 @@ abstract class CouchTasksDatabase : RoomDatabase() {
     abstract fun tombstoneDao(): TombstoneDao
     abstract fun syncStateDao(): SyncStateDao
     abstract fun syncIssueDao(): SyncIssueDao
+    abstract fun reminderDao(): ReminderDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -77,8 +78,8 @@ abstract class CouchTasksDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE tasks ADD COLUMN due_at TEXT")
                 db.execSQL("ALTER TABLE tasks ADD COLUMN remind INTEGER NOT NULL DEFAULT 0")
                 db.execSQL(
-                    "CREATE TABLE IF NOT EXISTS `reminder_notified` (`task_uuid` TEXT NOT NULL, `due_at` TEXT NOT NULL, " +
-                        "PRIMARY KEY(`task_uuid`, `due_at`))",
+                    "CREATE TABLE IF NOT EXISTS `reminder_state` (`task_uuid` TEXT NOT NULL, `due_at` TEXT NOT NULL, " +
+                        "`notified` INTEGER NOT NULL, PRIMARY KEY(`task_uuid`, `due_at`))",
                 )
             }
         }

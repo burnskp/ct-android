@@ -28,6 +28,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.couchtasks.android.OpenTaskRequest
 import com.couchtasks.android.data.DueFormat
 import com.couchtasks.android.data.TasksRepository
 import com.couchtasks.android.settings.CertificatePasswordStore
@@ -52,6 +53,7 @@ import com.couchtasks.android.viewmodel.SettingsViewModel
 import com.couchtasks.android.viewmodel.TasksViewModel
 import com.couchtasks.android.viewmodel.SyncIssueViewModel
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 @Composable
@@ -62,8 +64,16 @@ fun CouchTasksNavHost(
     configuredSyncRunner: ConfiguredSyncRunner,
     switchCoordinator: com.couchtasks.android.sync.ServerSwitchCoordinator? = null,
     onLocalChange: () -> Unit = {},
+    openTaskRequest: OpenTaskRequest? = null,
+    onOpenTaskHandled: () -> Unit = {},
 ) {
     val navController = rememberNavController()
+    LaunchedEffect(openTaskRequest) {
+        val request = openTaskRequest ?: return@LaunchedEffect
+        navController.currentBackStackEntryFlow.first() // the graph is set once NavHost has composed
+        navController.navigate(Routes.taskEditor(request.projectUuid, request.taskUuid)) { launchSingleTop = true }
+        onOpenTaskHandled()
+    }
     val snackbarHostState = remember { SnackbarHostState() }
     val tasksViewModel: TasksViewModel = viewModel(
         key = "tasks",

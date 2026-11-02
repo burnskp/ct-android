@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 6,
-    "identityHash": "0bfd7931b4a762d3099498882ae1e45e",
+    "identityHash": "c66e5ba883ed2811f609965a3901a6ee",
     "entities": [
       {
         "tableName": "connection_profiles",
@@ -472,8 +472,8 @@
         }
       },
       {
-        "tableName": "reminder_notified",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`task_uuid` TEXT NOT NULL, `due_at` TEXT NOT NULL, PRIMARY KEY(`task_uuid`, `due_at`))",
+        "tableName": "reminder_state",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`task_uuid` TEXT NOT NULL, `due_at` TEXT NOT NULL, `notified` INTEGER NOT NULL, PRIMARY KEY(`task_uuid`, `due_at`))",
         "fields": [
           {
             "fieldPath": "taskUuid",
@@ -485,6 +485,12 @@
             "fieldPath": "dueAt",
             "columnName": "due_at",
             "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notified",
+            "columnName": "notified",
+            "affinity": "INTEGER",
             "notNull": true
           }
         ],
@@ -499,7 +505,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '0bfd7931b4a762d3099498882ae1e45e')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c66e5ba883ed2811f609965a3901a6ee')"
     ]
   }
 }

@@ -201,6 +201,13 @@ class SettingsRepository(context: Context, val database: CouchTasksDatabase = Co
         }
     }
 
+    /** The one-time suggestion to allow exact alarms; once dismissed it stays hidden. */
+    val exactAlarmPromptDismissed: Flow<Boolean> = dataStore.data.map { it[Keys.ExactAlarmPromptDismissed] == "true" }
+
+    suspend fun dismissExactAlarmPrompt() {
+        dataStore.edit { it[Keys.ExactAlarmPromptDismissed] = "true" }
+    }
+
     suspend fun setHealthResult(lastHealthResult: String) {
         dataStore.edit { it[Keys.LastHealthResult] = lastHealthResult }
     }
@@ -246,6 +253,7 @@ class SettingsRepository(context: Context, val database: CouchTasksDatabase = Co
         val LastHealthResult = stringPreferencesKey("last_health_result")
         val ReviewIntervalDays = stringPreferencesKey("review_interval_days")
         val DueDisplayFormat = stringPreferencesKey("due_format")
+        val ExactAlarmPromptDismissed = stringPreferencesKey("exact_alarm_prompt_dismissed")
     }
 
     companion object {

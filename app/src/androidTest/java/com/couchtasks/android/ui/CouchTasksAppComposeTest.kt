@@ -28,6 +28,7 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.couchtasks.android.CouchTasksApp
+import com.couchtasks.android.OpenTaskRequest
 import com.couchtasks.android.data.CouchTasksDatabase
 import com.couchtasks.android.data.DueDates
 import com.couchtasks.android.data.DueFormat
@@ -69,6 +70,9 @@ class CouchTasksAppComposeTest {
             .build()
         repository = TasksRepository(db)
         settingsRepository = SettingsRepository(context, db)
+        // Turning a reminder on asks for this; granting it up front keeps the system dialog out of the tests.
+        androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().uiAutomation
+            .grantRuntimePermission(context.packageName, android.Manifest.permission.POST_NOTIFICATIONS)
         runBlocking {
             db.connectionDao().save(com.couchtasks.android.data.ConnectionProfile(
                 "legacy",
@@ -631,6 +635,26 @@ class CouchTasksAppComposeTest {
             runBlocking { db.taskDao().get(taskUuid)!!.dueAt == null }
         }
         assertFalse(runBlocking { db.taskDao().get(taskUuid)!!.remind })
+    }
+
+    @Test
+    fun openTaskRequest_fromReminderOpensTheTask() {
+        lateinit var request: OpenTaskRequest
+        runBlocking {
+            val inbox = repository.ensureInbox()
+            val task = repository.createTask(inbox.uuid, "Reminded task", dueAt = "2030-01-01T09:00:00Z", remind = true)
+            request = OpenTaskRequest(inbox.uuid, task.uuid)
+        }
+
+        compose.setContent {
+            CouchTasksTheme {
+                CouchTasksApp(repository, settingsRepository, certificatePasswordStore, configuredSyncRunner, openTaskRequest = request)
+            }
+        }
+
+        compose.waitUntilNodeWithText("Edit Task")
+        compose.onNodeWithText("Reminded task").assertIsDisplayed()
+        compose.onNodeWithTag("RemindSwitch").performScrollTo().assertIsOn()
     }
 
     @Test

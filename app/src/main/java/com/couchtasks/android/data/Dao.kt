@@ -187,3 +187,35 @@ interface SyncIssueDao {
     @Query("DELETE FROM sync_issue")
     suspend fun clear()
 }
+
+@Dao
+interface ReminderDao {
+    @Query(
+        """
+        SELECT t.uuid AS task_uuid, t.project_uuid, t.title, p.name AS project_name, t.due_at
+        FROM tasks t JOIN projects p ON p.uuid = t.project_uuid
+        WHERE t.status = 'pending' AND t.remind = 1 AND t.due_at IS NOT NULL
+        ORDER BY t.due_at ASC, t.uuid ASC
+        """,
+    )
+    suspend fun candidates(): List<ReminderCandidate>
+
+    @Query(
+        """
+        SELECT t.uuid AS task_uuid, t.project_uuid, t.title, p.name AS project_name, t.due_at
+        FROM tasks t JOIN projects p ON p.uuid = t.project_uuid
+        WHERE t.status = 'pending' AND t.remind = 1 AND t.due_at IS NOT NULL
+        ORDER BY t.due_at ASC, t.uuid ASC
+        """,
+    )
+    fun observeCandidates(): Flow<List<ReminderCandidate>>
+
+    @Query("SELECT * FROM reminder_state")
+    suspend fun states(): List<ReminderStateEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertStates(states: List<ReminderStateEntity>)
+
+    @androidx.room.Delete
+    suspend fun deleteStates(states: List<ReminderStateEntity>)
+}

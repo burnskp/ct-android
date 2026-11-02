@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -26,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.couchtasks.android.data.DueDates
@@ -53,6 +55,7 @@ fun AddTaskDialog(
     var dueText by remember { mutableStateOf("") }
     var remind by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
+    val remindChange = rememberRemindChange { remind = it }
     val zone = ZoneId.systemDefault()
     val now = LocalNow.current
     val parsedDue = dueText.takeIf(String::isNotBlank)?.let { runCatching { DueDates.parse(it, now, zone) } }
@@ -128,12 +131,22 @@ fun AddTaskDialog(
                     },
                     modifier = Modifier.testTag("AddTaskDueField"),
                 )
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                // The whole row toggles, so tapping the label works too.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .toggleable(
+                            value = remind && parsedDue?.isSuccess == true,
+                            enabled = parsedDue?.isSuccess == true,
+                            role = Role.Checkbox,
+                            onValueChange = remindChange,
+                        )
+                        .testTag("AddTaskRemindCheckbox"),
+                ) {
                     Checkbox(
                         checked = remind && parsedDue?.isSuccess == true,
-                        onCheckedChange = { remind = it },
+                        onCheckedChange = null,
                         enabled = parsedDue?.isSuccess == true,
-                        modifier = Modifier.testTag("AddTaskRemindCheckbox"),
                     )
                     Text("Remind me")
                 }

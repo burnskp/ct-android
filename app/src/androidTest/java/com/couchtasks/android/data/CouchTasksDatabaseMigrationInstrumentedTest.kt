@@ -153,7 +153,7 @@ class CouchTasksDatabaseMigrationInstrumentedTest {
             assertEquals("2026-04-28T09:00:00Z", it.getString(2))
             assertEquals(0, it.getInt(3))
         }
-        migrated.query("SELECT COUNT(*) FROM reminder_notified").use {
+        migrated.query("SELECT COUNT(*) FROM reminder_state").use {
             assertTrue(it.moveToFirst())
             assertEquals(0, it.getInt(0))
         }

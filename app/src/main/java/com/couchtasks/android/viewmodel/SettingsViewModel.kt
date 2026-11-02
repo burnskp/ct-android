@@ -37,6 +37,7 @@ class SettingsViewModel(
     val settings = settingsRepository.state
     val reviewIntervalDays = settingsRepository.reviewIntervalDays
     val dueFormat = settingsRepository.dueFormat
+    val exactAlarmPromptDismissed = settingsRepository.exactAlarmPromptDismissed
     val switchJournal = settingsRepository.database.connectionDao().observeJournal()
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
     val switchBusy = MutableStateFlow(false)
@@ -88,6 +89,10 @@ class SettingsViewModel(
                 }
                 .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it; onInvalid(it.userVisibleMessage()) }
         }
+    }
+
+    fun dismissExactAlarmPrompt() {
+        viewModelScope.launch { settingsRepository.dismissExactAlarmPrompt() }
     }
 
     fun saveDueFormat(format: DueFormat) {

@@ -60,10 +60,23 @@ data class TaskEntity(
     @ColumnInfo(defaultValue = "0") val remind: Boolean = false,
 )
 
-/** Reminders this device has already notified (or deliberately skipped). Local only; never synced. */
-@Entity(tableName = "reminder_notified", primaryKeys = ["task_uuid", "due_at"])
-data class ReminderNotifiedEntity(
+/**
+ * This device's state for one reminder (a task and its due time): armed while it was still in the future, then
+ * notified once it fired or was skipped. Local only; never synced. A new due time is a new reminder.
+ */
+@Entity(tableName = "reminder_state", primaryKeys = ["task_uuid", "due_at"])
+data class ReminderStateEntity(
     @ColumnInfo(name = "task_uuid") val taskUuid: String,
+    @ColumnInfo(name = "due_at") val dueAt: String,
+    val notified: Boolean,
+)
+
+/** A pending task with a reminder, as the reminder scheduler sees it. */
+data class ReminderCandidate(
+    @ColumnInfo(name = "task_uuid") val taskUuid: String,
+    @ColumnInfo(name = "project_uuid") val projectUuid: String,
+    val title: String,
+    @ColumnInfo(name = "project_name") val projectName: String,
     @ColumnInfo(name = "due_at") val dueAt: String,
 )
 

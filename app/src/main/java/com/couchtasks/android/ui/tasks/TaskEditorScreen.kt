@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -36,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
@@ -237,6 +239,8 @@ private fun DueSection(
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    val remindChange = rememberRemindChange(onRemindChange)
+    val notificationsAllowed = rememberNotificationsAllowed()
 
     fun setDue(date: LocalDate, time: LocalTime) {
         runCatching { DueDates.toUtc(LocalDateTime.of(date, time), zone) }
@@ -284,17 +288,26 @@ private fun DueSection(
             }
         }
         error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        // The whole row toggles, so tapping the label works too.
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .toggleable(value = remind, enabled = dueAt != null, role = Role.Switch, onValueChange = remindChange)
+                .testTag("RemindSwitch"),
+        ) {
             Text(
                 "Remind me",
                 modifier = Modifier.weight(1f),
                 color = if (dueAt == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
             )
-            Switch(
-                checked = remind,
-                onCheckedChange = onRemindChange,
-                enabled = dueAt != null,
-                modifier = Modifier.testTag("RemindSwitch"),
+            Switch(checked = remind, onCheckedChange = null, enabled = dueAt != null)
+        }
+        if (remind && dueAt != null && !notificationsAllowed) {
+            Text(
+                "Notifications are off for Couch Tasks, so this reminder won't alert you.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag("NotificationsOffHint"),
             )
         }
     }

@@ -45,6 +45,8 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel) {
     var switchDialogProfile by rememberSaveable { mutableStateOf<String?>(null) }
     val reviewIntervalDays by settingsViewModel.reviewIntervalDays.collectAsStateWithLifecycle(null)
     val dueFormat by settingsViewModel.dueFormat.collectAsStateWithLifecycle(null)
+    val exactAlarmPromptDismissed by settingsViewModel.exactAlarmPromptDismissed.collectAsStateWithLifecycle(true)
+    val exactAlarmsAllowed = rememberExactAlarmsAllowed()
     var reviewIntervalText by rememberSaveable(reviewIntervalDays) { mutableStateOf(reviewIntervalDays?.toString().orEmpty()) }
     val withLocalNetworkAccess = rememberLocalNetworkAccess()
 
@@ -171,6 +173,9 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel) {
             item { SettingsCard("Last sync", settings.lastSyncResult, successValue = "Sync successful") }
             dueFormat?.let { format ->
                 item { DueFormatCard(selected = format, onSelect = settingsViewModel::saveDueFormat) }
+            }
+            if (!exactAlarmsAllowed && !exactAlarmPromptDismissed) {
+                item { ExactAlarmCard(onDismiss = settingsViewModel::dismissExactAlarmPrompt) }
             }
             reviewIntervalDays?.let { savedDays ->
                 item {

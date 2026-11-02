@@ -122,6 +122,21 @@ class DueDatesTest {
     }
 
     @Test
+    fun display_usesChosenFormatForPendingAndAbsoluteForDone() {
+        val due = "2026-10-31T07:00:00Z"
+        assertEquals("2d5h", DueDates.display(due, TaskStatus.Pending, DueFormat.Relative, displayNow, ZoneOffset.UTC))
+        assertEquals("2026-10-31 07:00", DueDates.display(due, TaskStatus.Pending, DueFormat.Absolute, displayNow, ZoneOffset.UTC))
+        assertEquals("2026-10-31 07:00", DueDates.display(due, TaskStatus.Done, DueFormat.Relative, displayNow, ZoneOffset.UTC))
+    }
+
+    @Test
+    fun toLocal_convertsToZoneAndIgnoresMissingOrInvalidValues() {
+        assertEquals(LocalDateTime.of(2026, 11, 15, 9, 0), DueDates.toLocal("2026-11-15T14:00:00Z", minusFive))
+        assertEquals(null, DueDates.toLocal(null, minusFive))
+        assertEquals(null, DueDates.toLocal("2026-11-15", minusFive))
+    }
+
+    @Test
     fun isCanonical_acceptsOnlyUtcWholeSeconds() {
         assertTrue(DueDates.isCanonical("2026-11-15T14:00:00Z"))
         listOf(

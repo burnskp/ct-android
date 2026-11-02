@@ -1,5 +1,6 @@
 package com.couchtasks.android.viewmodel
 
+import com.couchtasks.android.data.DueFormat
 import com.couchtasks.android.data.requireNotSwitching
 import android.content.Intent
 import android.net.Uri
@@ -35,6 +36,7 @@ class SettingsViewModel(
 ) : ViewModel() {
     val settings = settingsRepository.state
     val reviewIntervalDays = settingsRepository.reviewIntervalDays
+    val dueFormat = settingsRepository.dueFormat
     val switchJournal = settingsRepository.database.connectionDao().observeJournal()
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
     val switchBusy = MutableStateFlow(false)
@@ -86,6 +88,10 @@ class SettingsViewModel(
                 }
                 .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it; onInvalid(it.userVisibleMessage()) }
         }
+    }
+
+    fun saveDueFormat(format: DueFormat) {
+        viewModelScope.launch { settingsRepository.setDueFormat(format) }
     }
 
     fun saveReviewIntervalDays(text: String) {

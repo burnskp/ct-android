@@ -28,6 +28,8 @@ fun TaskRow(
     onClick: () -> Unit,
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    /** Shown above the title in lists that mix projects, such as Due. */
+    projectName: String? = null,
 ) {
     Card(
         shape = RoundedCornerShape(18.dp),
@@ -47,6 +49,9 @@ fun TaskRow(
                 modifier = Modifier.testTag("TaskCheckbox-${task.uuid}"),
             )
             Column(Modifier.weight(1f)) {
+                if (projectName != null) {
+                    Text(projectName, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 Text(task.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
                 if (task.notes.isNotBlank()) {
                     Text(
@@ -56,6 +61,7 @@ fun TaskRow(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
+                DueChips(task, Modifier.padding(top = 4.dp))
             }
         }
     }

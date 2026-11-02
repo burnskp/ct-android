@@ -94,6 +94,17 @@ object DueDates {
         return parts.filter { it.first != 0L }.joinToString("") { "${it.first}${it.second}" }.ifEmpty { "0m" }
     }
 
+    /**
+     * The due value to show for a task: [format] for pending tasks, always absolute for done ones. Overdue is shown
+     * by colour (see [isOverdue]), never by a `!` prefix.
+     */
+    fun display(dueAt: String, status: String, format: DueFormat, now: Instant, zone: ZoneId): String =
+        if (format == DueFormat.Relative && status == TaskStatus.Pending) formatRelative(dueAt, now) else formatAbsolute(dueAt, zone)
+
+    /** Local date and time of a canonical due value, for seeding pickers; null when there is none. */
+    fun toLocal(dueAt: String?, zone: ZoneId): LocalDateTime? =
+        dueAt?.takeIf(::isCanonical)?.let { Instant.parse(it).atZone(zone).toLocalDateTime() }
+
     /** A pending task is overdue when its due time is strictly before [now]; done tasks never are. */
     fun isOverdue(dueAt: String?, status: String, now: Instant): Boolean =
         status == TaskStatus.Pending && dueAt != null && isCanonical(dueAt) && Instant.parse(dueAt).isBefore(now)
@@ -154,6 +165,11 @@ object DueDates {
     private fun invalid(input: String): Nothing = throw IllegalArgumentException(
         "Invalid due date: $input (expected YYYY-MM-DD, YY-MM-DD, MM-DD, DD, or <n>w<n>d, optionally followed by HH:MM)",
     )
+}
+
+enum class DueFormat {
+    Absolute,
+    Relative,
 }
 
 /** Due-field rules for every write: canonical `dueAt`, and no reminder without a due date. */

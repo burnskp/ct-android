@@ -190,6 +190,17 @@ class SettingsRepository(context: Context, val database: CouchTasksDatabase = Co
         dataStore.edit { it[Keys.ReviewIntervalDays] = days.toString() }
     }
 
+    /** Device-wide, like [reviewIntervalDays]. Absolute unless the user picks relative. */
+    val dueFormat: Flow<DueFormat> = dataStore.data.map { preferences ->
+        if (preferences[Keys.DueDisplayFormat] == DUE_FORMAT_RELATIVE) DueFormat.Relative else DueFormat.Absolute
+    }
+
+    suspend fun setDueFormat(format: DueFormat) {
+        dataStore.edit {
+            it[Keys.DueDisplayFormat] = if (format == DueFormat.Relative) DUE_FORMAT_RELATIVE else DUE_FORMAT_ABSOLUTE
+        }
+    }
+
     suspend fun setHealthResult(lastHealthResult: String) {
         dataStore.edit { it[Keys.LastHealthResult] = lastHealthResult }
     }
@@ -234,9 +245,12 @@ class SettingsRepository(context: Context, val database: CouchTasksDatabase = Co
         val LastSyncResult = stringPreferencesKey("last_sync_result")
         val LastHealthResult = stringPreferencesKey("last_health_result")
         val ReviewIntervalDays = stringPreferencesKey("review_interval_days")
+        val DueDisplayFormat = stringPreferencesKey("due_format")
     }
 
     companion object {
         const val DEFAULT_REVIEW_INTERVAL_DAYS = 7
+        private const val DUE_FORMAT_ABSOLUTE = "absolute"
+        private const val DUE_FORMAT_RELATIVE = "relative"
     }
 }

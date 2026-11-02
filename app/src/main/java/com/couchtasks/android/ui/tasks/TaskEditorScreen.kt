@@ -3,6 +3,7 @@ package com.couchtasks.android.ui.tasks
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -16,7 +17,9 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.PrimaryTabRow
@@ -30,18 +33,27 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.couchtasks.android.data.DueDates
 import com.couchtasks.android.data.TaskEntity
 import com.couchtasks.android.data.TaskStatus
 import com.couchtasks.android.data.TasksRepository
 import com.couchtasks.android.navigation.Routes
 import com.couchtasks.android.ui.common.EmptyScreen
 import com.couchtasks.android.viewmodel.TasksViewModel
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -184,6 +196,16 @@ fun TaskEditorScreen(
                     }
                 }
             }
+            DueSection(
+                dueAt = dueAt,
+                remind = remind,
+                status = status,
+                onDueChange = { newDueAt ->
+                    dueAt = newDueAt
+                    if (newDueAt == null) remind = false
+                },
+                onRemindChange = { remind = it },
+            )
             Text("Status", fontWeight = FontWeight.SemiBold)
             PrimaryTabRow(selectedTabIndex = if (status == TaskStatus.Pending) 0 else 1) {
                 Tab(
@@ -198,5 +220,103 @@ fun TaskEditorScreen(
                 )
             }
         }
+    }
+}
+
+/** Due date and time pickers, a clear action, and a reminder switch that needs a due date. */
+@Composable
+private fun DueSection(
+    dueAt: String?,
+    remind: Boolean,
+    status: String,
+    onDueChange: (String?) -> Unit,
+    onRemindChange: (Boolean) -> Unit,
+) {
+    val zone = ZoneId.systemDefault()
+    val local = DueDates.toLocal(dueAt, zone)
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    fun setDue(date: LocalDate, time: LocalTime) {
+        runCatching { DueDates.toUtc(LocalDateTime.of(date, time), zone) }
+            .onSuccess {
+                error = null
+                onDueChange(it)
+            }
+            .onFailure { error = it.message }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Due", fontWeight = FontWeight.SemiBold)
+        if (dueAt == null) {
+            Text("No due date", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else {
+            val now = LocalNow.current
+            val overdue = DueDates.isOverdue(dueAt, status, now)
+            Text(
+                DueDates.display(dueAt, status, LocalDueFormat.current, now, zone),
+                color = if (overdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier
+                    .testTag("TaskDueText")
+                    .then(if (overdue) Modifier.semantics { stateDescription = "overdue" } else Modifier),
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedButton(onClick = { showDatePicker = true }, modifier = Modifier.testTag("DueDateButton")) {
+                Text(local?.toLocalDate()?.toString() ?: "Set date")
+            }
+            OutlinedButton(
+                onClick = { showTimePicker = true },
+                enabled = local != null,
+                modifier = Modifier.testTag("DueTimeButton"),
+            ) {
+                Text(local?.toLocalTime()?.format(DateTimeFormatter.ofPattern("HH:mm")) ?: "Time")
+            }
+            if (dueAt != null) {
+                TextButton(
+                    onClick = {
+                        error = null
+                        onDueChange(null)
+                    },
+                    modifier = Modifier.testTag("ClearDueButton"),
+                ) { Text("Clear") }
+            }
+        }
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Remind me",
+                modifier = Modifier.weight(1f),
+                color = if (dueAt == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+            )
+            Switch(
+                checked = remind,
+                onCheckedChange = onRemindChange,
+                enabled = dueAt != null,
+                modifier = Modifier.testTag("RemindSwitch"),
+            )
+        }
+    }
+
+    if (showDatePicker) {
+        DueDatePickerDialog(
+            initial = local?.toLocalDate(),
+            onConfirm = { date ->
+                showDatePicker = false
+                setDue(date, local?.toLocalTime() ?: DueDates.DEFAULT_TIME)
+            },
+            onDismiss = { showDatePicker = false },
+        )
+    }
+    if (showTimePicker && local != null) {
+        DueTimePickerDialog(
+            initial = local.toLocalTime(),
+            onConfirm = { time ->
+                showTimePicker = false
+                setDue(local.toLocalDate(), time)
+            },
+            onDismiss = { showTimePicker = false },
+        )
     }
 }

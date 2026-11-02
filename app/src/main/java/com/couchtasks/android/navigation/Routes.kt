@@ -2,6 +2,7 @@ package com.couchtasks.android.navigation
 
 object Routes {
     const val AllTasks = "all-tasks"
+    const val Due = "due"
     const val Projects = "projects"
     const val Tasks = "tasks"
     const val Settings = "settings"

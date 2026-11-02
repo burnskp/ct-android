@@ -44,6 +44,7 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel) {
     var serverUrlError by rememberSaveable { mutableStateOf("") }
     var switchDialogProfile by rememberSaveable { mutableStateOf<String?>(null) }
     val reviewIntervalDays by settingsViewModel.reviewIntervalDays.collectAsStateWithLifecycle(null)
+    val dueFormat by settingsViewModel.dueFormat.collectAsStateWithLifecycle(null)
     var reviewIntervalText by rememberSaveable(reviewIntervalDays) { mutableStateOf(reviewIntervalDays?.toString().orEmpty()) }
     val withLocalNetworkAccess = rememberLocalNetworkAccess()
 
@@ -168,6 +169,9 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel) {
             item { SettingsCard("Checkpoint", settings.checkpoint.ifBlank { "Not synced yet" }) }
             item { SettingsCard("Last health", settings.lastHealthResult, successValue = "Healthy") }
             item { SettingsCard("Last sync", settings.lastSyncResult, successValue = "Sync successful") }
+            dueFormat?.let { format ->
+                item { DueFormatCard(selected = format, onSelect = settingsViewModel::saveDueFormat) }
+            }
             reviewIntervalDays?.let { savedDays ->
                 item {
                     ReviewIntervalCard(

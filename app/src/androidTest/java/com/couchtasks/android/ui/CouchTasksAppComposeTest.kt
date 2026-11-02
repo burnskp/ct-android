@@ -7,6 +7,10 @@ import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.longClick
@@ -25,6 +29,8 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.couchtasks.android.CouchTasksApp
 import com.couchtasks.android.data.CouchTasksDatabase
+import com.couchtasks.android.data.DueDates
+import com.couchtasks.android.data.DueFormat
 import com.couchtasks.android.data.SyncIssueEntity
 import com.couchtasks.android.data.TaskStatus
 import com.couchtasks.android.data.TasksRepository
@@ -32,12 +38,18 @@ import com.couchtasks.android.settings.CertificatePasswordStore
 import com.couchtasks.android.settings.SettingsRepository
 import com.couchtasks.android.sync.ConfiguredSyncRunner
 import com.couchtasks.android.sync.SyncIssueKind
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import java.time.LocalDateTime
+import java.time.ZoneId
 
 class CouchTasksAppComposeTest {
     @get:Rule
@@ -68,6 +80,7 @@ class CouchTasksAppComposeTest {
             db.connectionDao().activate(com.couchtasks.android.data.ActiveProfile(profileId = "legacy"))
             settingsRepository.setSyncStatus("", "", "Never synced")
             settingsRepository.setHealthResult("Health check not run")
+            settingsRepository.setDueFormat(DueFormat.Absolute)
         }
         certificatePasswordStore = CertificatePasswordStore(context)
         configuredSyncRunner = ConfiguredSyncRunner(db, settingsRepository, certificatePasswordStore)
@@ -348,8 +361,8 @@ class CouchTasksAppComposeTest {
         compose.onNodeWithText("Status").assertIsDisplayed()
         compose.onNodeWithText("Pending").assertIsDisplayed()
         compose.onNodeWithText("Done").assertIsDisplayed()
-        compose.onAllNodesWithText("Due date").assertCountEquals(0)
-        compose.onAllNodesWithText("Reminder").assertCountEquals(0)
+        compose.onNodeWithTag("DueDateButton").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("RemindSwitch").assertIsNotEnabled()
         compose.onAllNodesWithText("Priority").assertCountEquals(0)
         compose.onAllNodesWithText("Tags").assertCountEquals(0)
     }
@@ -517,6 +530,107 @@ class CouchTasksAppComposeTest {
         compose.onNodeWithTag("ServerUrlField").performTextInput(" https://example.com/// ")
         compose.onNodeWithText("Save server URL").performClick()
         compose.waitUntilNodeWithText("Saved: https://example.com")
+    }
+
+    @Test
+    fun dueTab_isDisabledUntilATaskHasADueDateThenListsThemSoonestFirst() {
+        runBlocking { repository.ensureInbox() }
+        setAppContent()
+        compose.onNodeWithTag("DueTab").assertIsNotEnabled()
+
+        runBlocking {
+            val inbox = repository.ensureInbox()
+            val work = repository.createProject("Work")
+            repository.createTask(work.uuid, "Later task", dueAt = "2030-01-02T09:00:00Z")
+            repository.createTask(inbox.uuid, "Sooner task", dueAt = "2030-01-01T09:00:00Z")
+            repository.createTask(inbox.uuid, "Undated task")
+        }
+        compose.waitUntil(timeoutMillis = 5_000) {
+            runCatching { compose.onNodeWithTag("DueTab").assertIsEnabled() }.isSuccess
+        }
+        compose.onNodeWithTag("DueTab").performClick()
+        compose.waitUntilNodeWithText("Sooner task")
+
+        // Each row is one clickable card, so its project label and title merge into one node.
+        val rows = compose.onAllNodes(hasText("Sooner task") or hasText("Later task")).fetchSemanticsNodes()
+            .map { it.config[androidx.compose.ui.semantics.SemanticsProperties.Text].map { text -> text.text } }
+        assertEquals(listOf(listOf("Inbox", "Sooner task"), listOf("Work", "Later task")), rows)
+        compose.onAllNodesWithText("Undated task").assertCountEquals(0)
+    }
+
+    @Test
+    fun taskRow_marksOverdueDueChipAndReminderForScreenReaders() {
+        val dueAt = "2020-01-01T09:00:00Z"
+        runBlocking {
+            val inbox = repository.ensureInbox()
+            repository.createTask(inbox.uuid, "Late task", dueAt = dueAt, remind = true)
+        }
+
+        setAppContent()
+
+        compose.waitUntilNodeWithText("Late task")
+        val shown = DueDates.formatAbsolute(dueAt, ZoneId.systemDefault())
+        compose.onNodeWithContentDescription("overdue, due $shown").assertIsDisplayed()
+        compose.onNodeWithContentDescription("reminder on").assertIsDisplayed()
+    }
+
+    @Test
+    fun settingsDueFormat_savesRelativeChoice() {
+        setAppContent()
+
+        compose.onNodeWithText("Settings").performClick()
+        compose.onNodeWithTag("SettingsList").performScrollToNode(hasTestTag("DueFormat-Relative"))
+        compose.onNodeWithTag("DueFormat-Relative").performClick()
+
+        compose.waitUntil(timeoutMillis = 5_000) {
+            runBlocking { settingsRepository.dueFormat.first() } == DueFormat.Relative
+        }
+    }
+
+    @Test
+    fun addTaskDialog_parsesDueInputAndSavesReminder() {
+        setAppContent()
+
+        compose.waitUntilInboxCreated()
+        compose.onNodeWithText("+").performClick()
+        compose.onNodeWithTag("AddTaskTitleField").performTextInput("Due task")
+        compose.onNodeWithTag("AddTaskDueField").performTextInput("today")
+        compose.onNodeWithTag("AddTaskSaveButton").assertIsNotEnabled()
+        compose.onNodeWithTag("AddTaskRemindCheckbox").assertIsNotEnabled()
+
+        compose.onNodeWithTag("AddTaskDueField").performTextClearance()
+        compose.onNodeWithTag("AddTaskDueField").performTextInput("2030-01-15 14:30")
+        compose.onNodeWithText("→ 2030-01-15 14:30").assertIsDisplayed()
+        compose.onNodeWithTag("AddTaskRemindCheckbox").performClick()
+        compose.onNodeWithTag("AddTaskSaveButton").performClick()
+
+        compose.waitUntilNodeWithText("Due task")
+        val saved = runBlocking { db.taskDao().allTasks().single { it.title == "Due task" } }
+        assertEquals(DueDates.toUtc(LocalDateTime.of(2030, 1, 15, 14, 30), ZoneId.systemDefault()), saved.dueAt)
+        assertTrue(saved.remind)
+    }
+
+    @Test
+    fun taskEditor_clearingDueDateTurnsReminderOff() {
+        lateinit var taskUuid: String
+        runBlocking {
+            val inbox = repository.ensureInbox()
+            taskUuid = repository.createTask(inbox.uuid, "Dated task", dueAt = "2030-01-01T09:00:00Z", remind = true).uuid
+        }
+        setAppContent()
+
+        compose.waitUntilNodeWithText("Dated task")
+        compose.onNodeWithText("Dated task").performClick()
+        compose.onNodeWithTag("RemindSwitch").performScrollTo().assertIsOn()
+        compose.onNodeWithTag("ClearDueButton").performClick()
+        compose.onNodeWithTag("RemindSwitch").assertIsOff().assertIsNotEnabled()
+        compose.onNodeWithText("No due date").assertIsDisplayed()
+        compose.onNodeWithTag("TaskTitleField").performImeAction()
+
+        compose.waitUntil(timeoutMillis = 5_000) {
+            runBlocking { db.taskDao().get(taskUuid)!!.dueAt == null }
+        }
+        assertFalse(runBlocking { db.taskDao().get(taskUuid)!!.remind })
     }
 
     @Test
